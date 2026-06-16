@@ -9,7 +9,6 @@
 <script>
   const GOOGLE_API_KEY = 'AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc';
 </script>
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=places&callback=initGoogleMap" async defer></script>
 <style>
 :root {
   --ink: #0a1628;
@@ -1986,13 +1985,10 @@ let mapAnimFrame = null;
 // ===== INIT =====
 window.addEventListener('load', () => {
   renderCompanyList();
-  // Google Maps APIが先にロードされていればすぐ分析開始
-  // ロード中であれば initGoogleMap コールバックが実行後に開始
-  if (mapInitialized) {
-    setTimeout(() => runAnalysis(), 300);
-  } else {
-    pendingAnalysis = true;
-  }
+  // Google Maps APIはbody末尾のscriptで非同期ロード
+  // initGoogleMap コールバックが呼ばれたら自動で分析開始
+  // Maps未ロードの場合にそなえて pendingAnalysis フラグをセット
+  pendingAnalysis = true;
 });
 
 // ===== LANGUAGE =====
@@ -2093,10 +2089,9 @@ function initGoogleMap() {
   // オーバーレイキャンバスをリサイズ
   gmap.addListener('bounds_changed', () => syncOverlayCanvas());
 
-  if (pendingAnalysis) {
-    pendingAnalysis = false;
-    runAnalysis();
-  }
+  // Maps初期化完了 → 会社リスト描画 → 分析開始
+  renderCompanyList();
+  setTimeout(() => runAnalysis(), 500);
 }
 
 function syncOverlayCanvas() {
@@ -3411,5 +3406,8 @@ window.addEventListener('resize', () => {
   syncOverlayCanvas();
 });
 </script>
+
+<!-- Google Maps API — bodyの最後でロード（DOMとJSが先に確定してから） -->
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=places&callback=initGoogleMap&loading=async" async defer></script>
 </body>
 </html>
