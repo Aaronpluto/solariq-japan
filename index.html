@@ -176,7 +176,7 @@ header {
 /* ===== MAIN LAYOUT ===== */
 .app {
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 320px 1fr;
   grid-template-rows: auto 1fr;
   min-height: calc(100vh - 56px);
 }
@@ -192,7 +192,7 @@ header {
 }
 
 .panel-section {
-  padding: 20px 24px;
+  padding: 16px 18px;
   border-bottom: 1px solid var(--gray);
 }
 
@@ -525,15 +525,19 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
 .right-panel {
   display: flex;
   flex-direction: column;
+  min-height: calc(100vh - 56px);
 }
 
 /* Map area */
 .map-container {
   position: relative;
   background: var(--sky);
-  height: 420px;
+  height: calc(100vh - 56px);
+  max-height: 100vh;
   overflow: hidden;
   border-bottom: 1px solid var(--gray2);
+  position: sticky;
+  top: 56px;
 }
 
 /* Simulated satellite map */
@@ -1307,6 +1311,7 @@ input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
   .left-panel { position: static; max-height: none; }
+  .map-container { height: 55vh; position: relative; top: 0; }
   .kpi-row { grid-template-columns: repeat(2, 1fr); }
   .results-grid { grid-template-columns: 1fr; }
   .cta-card { grid-template-columns: 1fr; }
@@ -1366,8 +1371,9 @@ body.lang-en .en-block { display: block; }
       <div class="address-search">
         <input type="text" class="address-input" id="addressInput"
           placeholder="例：東京都新宿区西新宿2-8-1"
-          value="東京都新宿区西新宿2-8-1">
-        <button class="search-btn" onclick="searchAddress()">🔍</button>
+          value="東京都新宿区西新宿2-8-1"
+          onkeydown="if(event.key==='Enter') runAnalysis()">
+        <button class="search-btn" onclick="runAnalysis()">🔍</button>
       </div>
       <div class="quick-cities">
         <span class="city-chip" onclick="setCity('tokyo')">🗼 東京</span>
@@ -1600,6 +1606,49 @@ body.lang-en .en-block { display: block; }
           <span class="ja">📊 年間日照量</span>
           <span class="en">📊 Annual Flux</span>
         </button>
+      </div>
+
+      <!-- 太陽角度スライダー（日照シミュレーション時のみ表示） -->
+      <div id="sunSliderPanel" style="display:none;position:absolute;bottom:56px;left:12px;right:12px;z-index:10;background:rgba(10,22,40,0.85);backdrop-filter:blur(8px);border-radius:10px;padding:12px 16px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,0.6);letter-spacing:1px">
+            <span class="ja">時刻シミュレーション</span>
+            <span class="en">TIME SIMULATION</span>
+          </div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#fbbf24;font-weight:600" id="sunTimeLabel">12:00</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span style="font-size:14px">🌅</span>
+          <input type="range" id="sunTimeSlider" min="5" max="19" value="12" step="0.5"
+            style="flex:1"
+            oninput="onSunTimeChange(this.value)">
+          <span style="font-size:14px">🌇</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:4px">
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.3)">5:00</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.3)">12:00</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.3)">19:00</span>
+        </div>
+        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="sunStats">
+          <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:6px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4)">
+              <span class="ja">太陽高度</span><span class="en">ALTITUDE</span>
+            </div>
+            <div style="font-size:14px;color:#fbbf24;font-weight:600" id="sunAltDisplay">—°</div>
+          </div>
+          <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:6px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4)">
+              <span class="ja">方位角</span><span class="en">AZIMUTH</span>
+            </div>
+            <div style="font-size:14px;color:#fbbf24;font-weight:600" id="sunAzDisplay">—°</div>
+          </div>
+          <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:6px">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4)">
+              <span class="ja">発電効率</span><span class="en">EFFICIENCY</span>
+            </div>
+            <div style="font-size:14px;color:#fbbf24;font-weight:600" id="sunEffDisplay">—%</div>
+          </div>
+        </div>
       </div>
 
       <div class="loading-overlay" id="loadingOverlay">
@@ -2010,24 +2059,23 @@ function setCity(key) {
 
 function updateMapBadge(d) {
   const badge = document.getElementById('mapBadge');
-  badge.querySelector('.ja').textContent = '📍 ' + d.label;
-  badge.querySelector('.en').textContent = '📍 ' + d.addressEn;
+  if (badge.querySelector('.ja')) badge.querySelector('.ja').textContent = '📍 ' + (d.label || d.address);
+  if (badge.querySelector('.en')) badge.querySelector('.en').textContent = '📍 ' + (d.addressEn || d.label || d.address);
   document.getElementById('coordDisplay').textContent = d.lat.toFixed(4) + '° N, ' + d.lng.toFixed(4) + '° E';
 }
 
 function searchAddress() {
-  const addr = document.getElementById('addressInput').value;
-  // Find matching city
-  for (const [key, d] of Object.entries(CITY_DATA)) {
-    if (addr.includes(d.label.split('区')[0]) || addr.includes(key)) {
-      currentCity = d;
-      updateMapBadge(d);
-      return;
-    }
-  }
-  // Default to tokyo
-  currentCity = CITY_DATA.tokyo;
-  updateMapBadge(CITY_DATA.tokyo);
+  // 検索ボタン → そのままrunAnalysisを呼ぶ（geocoderが住所を解決する）
+  runAnalysis();
+}
+
+function setCity(key) {
+  const d = CITY_DATA[key];
+  if (!d) return;
+  document.getElementById('addressInput').value = d.address;
+  currentCity = d;
+  // 都市チップをクリックしたらすぐ分析実行
+  runAnalysis();
 }
 
 // ===== COMPANY LIST =====
@@ -2408,26 +2456,33 @@ function clearMapOverlays() {
   if (buildingPolygon) { buildingPolygon.setMap(null); buildingPolygon = null; }
 }
 
-// ビュー切替（パネル/日照/年間）
-function setView(v) {
-  mapView = v;
-  ['btnPanels','btnShadow','btnAnnual'].forEach(id => {
-    document.getElementById(id).classList.toggle('active', id === 'btn' + v.charAt(0).toUpperCase() + v.slice(1));
+// 時刻に応じてパネルの色を更新（DataLayersなし時のフォールバック）
+function updatePanelsByTime(altDeg, effPct) {
+  panelOverlays.forEach(overlay => {
+    if (!overlay.setOptions) return;
+    if (altDeg < 5) {
+      overlay.setOptions({ fillColor: '#1a2a3a', fillOpacity: 0.5 });
+    } else {
+      const ratio = effPct / 100;
+      const r = Math.round(26  + (245-26)  * ratio);
+      const g = Math.round(58  + (158-58)  * ratio);
+      const b = Math.round(106 + (11-106)  * ratio);
+      overlay.setOptions({ fillColor: `rgb(${r},${g},${b})`, fillOpacity: 0.75 + ratio * 0.15 });
+    }
   });
-  if (currentResults && gmap) {
-    const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
-    drawSolarOverlay(currentResults._lat || city.lat, currentResults._lng || city.lng, solarData, v);
-  }
 }
 
-// 地図リドロー（後方互換性のため残す）
-function redrawMap() {
-  if (currentResults && gmap) {
-    const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
-    drawSolarOverlay(currentResults._lat || city.lat, currentResults._lng || city.lng, solarData, mapView);
-  }
+// 太陽位置計算
+function solarDecl(doy) {
+  const B = 2*Math.PI/365*(doy-1);
+  return 0.006918 - 0.399912*Math.cos(B) + 0.070257*Math.sin(B)
+       - 0.006758*Math.cos(2*B) + 0.000907*Math.sin(2*B);
 }
-
+function solarAlt(lat_deg, decl, hour) {
+  const lat = lat_deg*Math.PI/180;
+  const ha  = Math.PI/12*(hour-12);
+  return Math.asin(Math.sin(lat)*Math.sin(decl)+Math.cos(lat)*Math.cos(decl)*Math.cos(ha));
+}
 
 
 // ============================================================
@@ -2474,17 +2529,7 @@ const ORIENT_FACTOR = { south:1.00, southeast:0.96, southwest:0.96, east:0.87, w
 // シナリオ係数
 const SCENARIO_F    = { avg:1.00, best:1.08, worst:0.87 };
 
-// ---- 物理計算 ----
-function solarDecl(doy) {
-  const B = 2*Math.PI/365*(doy-1);
-  return 0.006918 - 0.399912*Math.cos(B) + 0.070257*Math.sin(B)
-       - 0.006758*Math.cos(2*B) + 0.000907*Math.sin(2*B);
-}
-function solarAlt(lat_deg, decl, hour) {
-  const lat = lat_deg*Math.PI/180;
-  const ha  = Math.PI/12*(hour-12);
-  return Math.asin(Math.sin(lat)*Math.sin(decl)+Math.cos(lat)*Math.cos(decl)*Math.cos(ha));
-}
+// ---- 物理計算（solarDecl/solarAltは上部で定義済み）----
 function poaIrradiance(ghi, alt, tilt_deg, azimuth_deg) {
   if (alt<=0||ghi<=0) return 0;
   const tilt = tilt_deg*Math.PI/180;
@@ -2647,6 +2692,12 @@ function runAnalysis() {
     pendingAnalysis = true;
     return;
   }
+
+  // 新住所の分析時はDataLayersキャッシュをリセット
+  dataLayersCache = null;
+  if (activeOverlay) { activeOverlay.setMap(null); activeOverlay = null; }
+  const legend = document.getElementById('colorLegend');
+  if (legend) legend.remove();
 
   const overlay = document.getElementById('loadingOverlay');
   overlay.classList.add('show');
@@ -3409,11 +3460,360 @@ function submitLead() {
   console.log('Lead captured:', { name, phone, address: document.getElementById('addressInput').value, results: currentResults });
 }
 
+// ============================================================
+// DATA LAYERS — GeoTIFF 視覚化エンジン
+// Google Solar API DataLayers endpoint + geotiff.js + plotty
+// ============================================================
+
+let dataLayersCache = null;      // DataLayers APIレスポンスキャッシュ
+let activeOverlay   = null;      // 現在のGeoTIFFオーバーレイ
+let hourlyShadeUrls = [];        // 時刻別シェードURL（8760枚）
+let currentHourIdx  = 12;        // 現在の時刻インデックス
+
+// DataLayers APIを呼び出す
+async function fetchDataLayers(lat, lng) {
+  const url = `https://solar.googleapis.com/v1/dataLayers:get`
+    + `?location.latitude=${lat}&location.longitude=${lng}`
+    + `&radiusMeters=50&view=FULL_LAYERS&requiredQuality=HIGH`
+    + `&key=${GOOGLE_API_KEY}`;
+  try {
+    const res  = await fetch(url);
+    const data = await res.json();
+    if (data.error) { console.warn('DataLayers error:', data.error.message); return null; }
+    return data;
+  } catch(e) {
+    console.warn('DataLayers fetch error:', e);
+    return null;
+  }
+}
+
+// GeoTIFFをfetchしてArrayBufferで返す
+async function fetchGeoTiff(url) {
+  const res = await fetch(url + `&key=${GOOGLE_API_KEY}`);
+  return await res.arrayBuffer();
+}
+
+// GeoTIFFをGeotiff.jsで読み込んでピクセルデータを返す
+async function readGeoTiff(arrayBuffer) {
+  const tiff  = await GeoTIFF.fromArrayBuffer(arrayBuffer);
+  const image = await tiff.getImage();
+  const bbox  = image.getBoundingBox();   // [west, south, east, north]
+  const data  = await image.readRasters();
+  return {
+    width:  image.getWidth(),
+    height: image.getHeight(),
+    bbox,
+    data,   // data[0] = 第1バンド（float32配列）
+  };
+}
+
+// Google Maps上にGeoTIFFオーバーレイを描画
+async function renderGeoTiffOverlay(tiffUrl, colorScale, minVal, maxVal, opacity = 0.7) {
+  if (!gmap) return;
+
+  // 古いオーバーレイを削除
+  if (activeOverlay) { activeOverlay.setMap(null); activeOverlay = null; }
+
+  try {
+    const ab   = await fetchGeoTiff(tiffUrl);
+    const geo  = await readGeoTiff(ab);
+    const [west, south, east, north] = geo.bbox;
+
+    // plottyでカラーマップ描画
+    const canvas = document.createElement('canvas');
+    canvas.width  = geo.width;
+    canvas.height = geo.height;
+
+    const plot = new plotty.plot({
+      canvas,
+      data:     geo.data[0],
+      width:    geo.width,
+      height:   geo.height,
+      domain:   [minVal, maxVal],
+      colorScale,
+      clampLow:  true,
+      clampHigh: true,
+    });
+    plot.render();
+
+    // Google Maps GroundOverlay として追加
+    const bounds = new google.maps.LatLngBounds(
+      new google.maps.LatLng(south, west),
+      new google.maps.LatLng(north, east),
+    );
+
+    // canvasをDataURLに変換
+    const dataUrl = canvas.toDataURL('image/png');
+
+    activeOverlay = new google.maps.GroundOverlay(dataUrl, bounds, {
+      opacity,
+      clickable: false,
+    });
+    activeOverlay.setMap(gmap);
+
+    // 地図を対象エリアにフィット
+    gmap.fitBounds(bounds);
+
+    return geo;
+  } catch(e) {
+    console.warn('GeoTIFF render error:', e);
+    return null;
+  }
+}
+
+// 年間日照量ヒートマップ（annualFlux）
+async function showAnnualFlux(lat, lng) {
+  showMapLoading(true, currentLang === 'ja' ? '年間日照データを取得中...' : 'Loading annual flux...');
+
+  if (!dataLayersCache) {
+    dataLayersCache = await fetchDataLayers(lat, lng);
+  }
+
+  if (!dataLayersCache?.annualFluxUrl) {
+    showMapLoading(false);
+    // フォールバック：従来のポリゴン描画
+    drawSolarOverlay(lat, lng, solarData, 'annual');
+    return;
+  }
+
+  showMapLoading(false);
+  // jet カラーマップ（青→緑→黄→赤）で年間日照量を表示
+  await renderGeoTiffOverlay(dataLayersCache.annualFluxUrl, 'jet', 0, 1800, 0.75);
+  addColorScaleLegend('annual');
+}
+
+// 時刻別日照シミュレーション（hourlyShade）
+async function showHourlyShade(lat, lng, hourOfDay) {
+  if (!dataLayersCache) {
+    showMapLoading(true, currentLang === 'ja' ? '日照データを取得中...' : 'Loading shade data...');
+    dataLayersCache = await fetchDataLayers(lat, lng);
+    showMapLoading(false);
+  }
+
+  if (!dataLayersCache?.hourlyShadeUrls?.length) {
+    drawSolarOverlay(lat, lng, solarData, 'shadow');
+    return;
+  }
+
+  // hourlyShadeUrls は月×時 = 12×24 = 288枚
+  // インデックス: month * 24 + hour
+  const now   = new Date();
+  const month = now.getMonth(); // 0-11
+  const idx   = Math.min(month * 24 + Math.floor(hourOfDay), dataLayersCache.hourlyShadeUrls.length - 1);
+
+  showMapLoading(true, currentLang === 'ja' ? `${Math.floor(hourOfDay)}時の影を描画中...` : `Rendering ${Math.floor(hourOfDay)}:00 shadow...`);
+  // greys: 影あり=黒, 影なし=白（反転して使う）
+  await renderGeoTiffOverlay(dataLayersCache.hourlyShadeUrls[idx], 'greys', 0, 1, 0.55);
+  showMapLoading(false);
+  addColorScaleLegend('shadow');
+}
+
+// 月別日照量（monthlyFlux）
+async function showMonthlyFlux(lat, lng, month) {
+  if (!dataLayersCache) {
+    showMapLoading(true);
+    dataLayersCache = await fetchDataLayers(lat, lng);
+    showMapLoading(false);
+  }
+  if (!dataLayersCache?.monthlyFluxUrl) {
+    drawSolarOverlay(lat, lng, solarData, 'annual');
+    return;
+  }
+  showMapLoading(true, currentLang === 'ja' ? `${month+1}月の日照量を表示中...` : `Loading ${month+1} month flux...`);
+  await renderGeoTiffOverlay(dataLayersCache.monthlyFluxUrl, 'jet', 0, 200, 0.75);
+  showMapLoading(false);
+  addColorScaleLegend('monthly');
+}
+
+// RGB衛星画像（rgbUrl）をオーバーレイ
+async function showRGBLayer(lat, lng) {
+  if (!dataLayersCache) {
+    showMapLoading(true);
+    dataLayersCache = await fetchDataLayers(lat, lng);
+    showMapLoading(false);
+  }
+  if (!dataLayersCache?.rgbUrl) return;
+
+  if (activeOverlay) { activeOverlay.setMap(null); activeOverlay = null; }
+  const ab  = await fetchGeoTiff(dataLayersCache.rgbUrl);
+  const geo = await readGeoTiff(ab);
+  const [west, south, east, north] = geo.bbox;
+
+  // RGBは3バンド — CanvasにRGBAで描画
+  const canvas = document.createElement('canvas');
+  canvas.width  = geo.width;
+  canvas.height = geo.height;
+  const ctx     = canvas.getContext('2d');
+  const imgData = ctx.createImageData(geo.width, geo.height);
+
+  const r = geo.data[0], g = geo.data[1], b = geo.data[2];
+  for (let i = 0; i < geo.width * geo.height; i++) {
+    imgData.data[i*4]   = r[i];
+    imgData.data[i*4+1] = g[i];
+    imgData.data[i*4+2] = b[i];
+    imgData.data[i*4+3] = 255;
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  const bounds = new google.maps.LatLngBounds(
+    new google.maps.LatLng(south, west),
+    new google.maps.LatLng(north, east),
+  );
+  activeOverlay = new google.maps.GroundOverlay(canvas.toDataURL(), bounds, { opacity: 1, clickable: false });
+  activeOverlay.setMap(gmap);
+  gmap.fitBounds(bounds);
+}
+
+// カラースケール凡例を表示
+function addColorScaleLegend(type) {
+  let legend = document.getElementById('colorLegend');
+  if (!legend) {
+    legend = document.createElement('div');
+    legend.id = 'colorLegend';
+    legend.style.cssText = `
+      position:absolute;bottom:56px;right:12px;z-index:10;
+      background:rgba(10,22,40,0.85);backdrop-filter:blur(8px);
+      border-radius:8px;padding:10px 14px;
+      font-family:'JetBrains Mono',monospace;font-size:10px;
+    `;
+    document.querySelector('.map-container').appendChild(legend);
+  }
+
+  const configs = {
+    annual:  { label: currentLang==='ja' ? '年間日照量 (kWh/kW)' : 'Annual flux (kWh/kW)', min:'0', max:'1800+', colors:['#00008B','#0000FF','#00FFFF','#00FF00','#FFFF00','#FF0000'] },
+    shadow:  { label: currentLang==='ja' ? '影 (暗=影あり)' : 'Shade (dark=shaded)',      min: currentLang==='ja'?'影あり':'shaded', max: currentLang==='ja'?'日当たり':'sunny', colors:['#111','#555','#999','#ccc','#fff'] },
+    monthly: { label: currentLang==='ja' ? '月間日照量 (kWh/kW)' : 'Monthly flux (kWh/kW)', min:'0', max:'200+', colors:['#00008B','#0000FF','#00FFFF','#00FF00','#FFFF00','#FF0000'] },
+  };
+
+  const cfg = configs[type] || configs.annual;
+  const gradient = cfg.colors.join(',');
+
+  legend.innerHTML = `
+    <div style="color:rgba(255,255,255,0.6);letter-spacing:1px;margin-bottom:6px">${cfg.label}</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="color:rgba(255,255,255,0.5);font-size:9px">${cfg.min}</span>
+      <div style="flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,${gradient})"></div>
+      <span style="color:rgba(255,255,255,0.5);font-size:9px">${cfg.max}</span>
+    </div>
+  `;
+}
+
+// 地図ローディング表示
+function showMapLoading(show, msg) {
+  const overlay = document.getElementById('loadingOverlay');
+  if (!overlay) return;
+  overlay.classList.toggle('show', show);
+  if (msg && show) {
+    const step = overlay.querySelector('.loading-step');
+    if (step) step.textContent = msg;
+  }
+}
+
+// ============================================================
+// setView を DataLayers 対応に更新
+// ============================================================
+
+// ビュー切替
+function setView(v) {
+  mapView = v;
+  ['btnPanels','btnShadow','btnAnnual'].forEach(id => {
+    const btn = document.getElementById(id);
+    if (btn) btn.classList.toggle('active',
+      id === 'btn' + v.charAt(0).toUpperCase() + v.slice(1));
+  });
+
+  const sliderPanel = document.getElementById('sunSliderPanel');
+  if (sliderPanel) sliderPanel.style.display = v === 'shadow' ? 'block' : 'none';
+
+  // 凡例を非表示（ビュー切替時）
+  const legend = document.getElementById('colorLegend');
+  if (legend) legend.remove();
+
+  // activeOverlayをリセット
+  if (activeOverlay && v === 'panels') {
+    activeOverlay.setMap(null);
+    activeOverlay = null;
+  }
+
+  if (!currentResults || !gmap) return;
+  const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
+  const lat  = currentResults._lat || city.lat;
+  const lng  = currentResults._lng || city.lng;
+
+  if (v === 'panels') {
+    // パネル配置：BuildingInsightsのポリゴン
+    clearMapOverlays();
+    drawSolarOverlay(lat, lng, solarData, 'panels');
+
+  } else if (v === 'annual') {
+    // 年間日照量：DataLayers annualFlux GeoTIFF
+    clearMapOverlays();
+    showAnnualFlux(lat, lng);
+
+  } else if (v === 'shadow') {
+    // 日照シミュレーション：DataLayers hourlyShade
+    clearMapOverlays();
+    const hour = parseFloat(document.getElementById('sunTimeSlider')?.value || 12);
+    showHourlyShade(lat, lng, hour);
+    onSunTimeChange(hour);
+  }
+}
+
+// 太陽時刻スライダー変更（DataLayers版）
+function onSunTimeChange(val) {
+  const hour = parseFloat(val);
+  const h = Math.floor(hour);
+  const m = Math.round((hour - h) * 60);
+  const label = document.getElementById('sunTimeLabel');
+  if (label) label.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
+
+  if (!currentResults) return;
+  const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
+  const lat  = currentResults._lat || city.lat;
+
+  // 太陽位置計算
+  const decl   = solarDecl(182);
+  const alt    = solarAlt(lat, decl, hour);
+  const altDeg = Math.max(0, alt * 180 / Math.PI);
+  const ha     = (hour - 12) * 15;
+  const azimuth = 180 + ha * 0.85;
+  const sinAlt = Math.sin(Math.max(0, alt));
+  const eff    = altDeg < 5 ? 0 : Math.round(sinAlt * 100);
+
+  const altEl = document.getElementById('sunAltDisplay');
+  const azEl  = document.getElementById('sunAzDisplay');
+  const effEl = document.getElementById('sunEffDisplay');
+  if (altEl) altEl.textContent = altDeg.toFixed(1) + '°';
+  if (azEl)  azEl.textContent  = azimuth.toFixed(0) + '°';
+  if (effEl) effEl.textContent = eff + '%';
+
+  // DataLayersがあれば時刻別シェードを更新、なければポリゴン色更新
+  if (dataLayersCache?.hourlyShadeUrls?.length && mapView === 'shadow') {
+    const city2 = NEDO[currentResults?.cityKey] || NEDO.tokyo;
+    const lng = currentResults?._lng || city2.lng;
+    showHourlyShade(lat, lng, hour);
+  } else {
+    updatePanelsByTime(altDeg, eff);
+  }
+}
+
+// 地図リドロー
+function redrawMap() {
+  if (currentResults && gmap) {
+    const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
+    drawSolarOverlay(currentResults._lat || city.lat, currentResults._lng || city.lng, solarData, mapView);
+  }
+}
+
 // Window resize
 window.addEventListener('resize', () => {
   syncOverlayCanvas();
 });
 </script>
+
+<!-- GeoTIFF + Plotty for DataLayers visualization -->
+<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plotty@0.4.9/dist/plotty.min.js"></script>
 
 <!-- Google Maps API — bodyの最後でロード（DOMとJSが先に確定してから） -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=places,geocoding&callback=initGoogleMap&loading=async" async defer></script>
