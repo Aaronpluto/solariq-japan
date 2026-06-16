@@ -1148,10 +1148,264 @@ function rerenderResults(base) {
 
 function renderCoList() {
   const c = document.getElementById('coList');
-  c.innerHTML='';
-  COMPANIES.forEach((co,i)=>{
-    const roi = curResults ? computeROI(curResults,i):null;
-    const div=document.createElement('div');
-    div.className='co-item'+(i===selCo?' sel':'');
-    div.onclick=()=>{selCo=i;renderCoList();if(curResults)rerenderResults(curResults);};
-    div.innerHTML=`
+  c.innerHTML = '';
+  COMPANIES.forEach((co,i) => {
+    const roi = curResults ? computeROI(curResults,i) : null;
+    const div = document.createElement('div');
+    div.className = 'co-item' + (i===selCo?' sel':'');
+    div.onclick = () => { selCo=i; renderCoList(); if(curResults) rerenderResults(curResults); };
+    div.innerHTML =
+      '<div class="co-dot" style="background:'+co.color+'"></div>' +
+      '<div class="co-info"><div class="co-name">'+(lang==='ja'?co.name:co.nameEn)+'</div>' +
+      '<div class="co-spec">'+co.efficiency+'% · '+co.warranty+'yr · ¥'+(co.pricePerKW/10000).toFixed(1)+'万/kW</div></div>' +
+      (roi?'<div class="co-roi">+'+roi.roi25+'%</div>':'') +
+      '<div class="co-check">✓</div>';
+    c.appendChild(div);
+  });
+}
+
+function renderBarChart(monthly) {
+  const c = document.getElementById('barChart'); c.innerHTML='';
+  const max = Math.max(...monthly);
+  const labels = lang==='ja'?MO_JA:MO_EN;
+  monthly.forEach((v,i) => {
+    const pct = v/max;
+    const hue = 200+(1-pct)*30;
+    const item = document.createElement('div'); item.className='bar-item';
+    item.innerHTML = '<div class="bar-fill" style="height:0;background:hsl('+hue+',70%,45%);transition:height .8s cubic-bezier(.34,1.56,.64,1) '+(i*.04)+'s" data-v="'+v+'kWh"></div><div class="bar-mo">'+labels[i]+'</div>';
+    c.appendChild(item);
+    setTimeout(()=>item.querySelector('.bar-fill').style.height=Math.round(pct*72)+'px',50);
+  });
+}
+
+function renderROIChart(base) {
+  const canvas = document.getElementById('roiCanvas');
+  const W = canvas.offsetWidth||300, H=95;
+  const dpr = window.devicePixelRatio||1;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  canvas.style.width=W+'px'; canvas.style.height=H+'px';
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const scColors={best:'#059669',avg:'#2563eb',worst:'#dc2626'};
+  const scLabels=lang==='ja'?{best:'多照年',avg:'平均年',worst:'寡照年'}:{best:'Best',avg:'Avg',worst:'Worst'};
+  const allCums={};
+  for (const sc of ['best','avg','worst']) {
+    const scData=base.scenarios[sc];
+    const c=COMPANIES[selCo];
+    const annKWh=Math.round(scData.annualKWh*(c.efficiency/COMPANIES[0].efficiency));
+    const installC=Math.round(base.sysKW*c.pricePerKW);
+    const sub=calcSubsidies(base.prefKey,base.sysKW,installC);
+    const netC=installC-sub.total;
+    let r=-netC; const cum=[];
+    for(let y=1;y<=25;y++){ r+=Math.round(annKWh*Math.pow(.9945,y)*.7*30*Math.pow(1.03,y)+annKWh*.3*12)-Math.round(base.sysKW*5000); cum.push(Math.round(r/10000)); }
+    allCums[sc]=cum;
+  }
+  const allV=Object.values(allCums).flat();
+  const minV=Math.min(...allV,0), maxV=Math.max(...allV), range=maxV-minV||1;
+  const pad={l:4,r:58,t:8,b:16};
+  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
+  const zY=pad.t+ch-((0-minV)/range)*ch;
+  ctx.strokeStyle='rgba(0,0,0,.08)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+  ctx.beginPath(); ctx.moveTo(pad.l,zY); ctx.lineTo(pad.l+cw,zY); ctx.stroke(); ctx.setLineDash([]);
+  for(const sc of ['worst','avg','best']){
+    const cum=allCums[sc];
+    const pts=cum.map((v,i)=>({x:pad.l+(i/24)*cw,y:pad.t+ch-((v-minV)/range)*ch}));
+    ctx.beginPath(); pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+    ctx.strokeStyle=scColors[sc]; ctx.lineWidth=sc==='avg'?2:1.5;
+    if(sc!=='avg')ctx.setLineDash([4,3]); ctx.stroke(); ctx.setLineDash([]);
+    const last=pts[pts.length-1];
+    ctx.fillStyle=scColors[sc]; ctx.font='9px JetBrains Mono'; ctx.textAlign='left';
+    ctx.fillText(scLabels[sc]+' +'+cum[24]+'万',last.x+3,last.y+3);
+  }
+  ctx.fillStyle='rgba(100,116,139,.7)'; ctx.font='8px JetBrains Mono'; ctx.textAlign='center';
+  [5,10,15,20,25].forEach(y=>{ctx.fillText(y+(lang==='ja'?'年':'yr'),pad.l+((y-1)/24)*cw,H-2);});
+}
+
+function renderCalcSteps(base, roi) {
+  const isJa=lang==='ja';
+  const city=NEDO[base.ck]||NEDO.tokyo;
+  const avgSunny=Math.round(city.sunny.reduce((a,b)=>a+b,0)/12*100);
+  const nNat=SUBSIDY_DB.national.length;
+  const nPref=(SUBSIDY_DB.pref[base.prefKey]||[]).length;
+  const tilt=base.orientation==='flat'?5:10;
+  const steps = isJa ? [
+    {l:'STEP 1 · NEDOデータ',f:'METPV-20 '+base.ck+' · 逐時日射量 · 晴天率'+avgSunny+'%',r:'データ取得完了',c:''},
+    {l:'STEP 2 · 傾斜面変換',f:'Perez簡易モデル · 傾斜'+tilt+'° · 向き×'+base.orientFactor,r:'実効日射量算出',c:''},
+    {l:'STEP 3 · 温度補正発電量',f:'セル温度補正(-0.35%/°C) · システム損失0.85',r:(base.annualKWh/1000).toFixed(1)+'万 kWh/年',c:'hi'},
+    {l:'STEP 4 · 設置費用',f:'¥'+(COMPANIES[selCo].pricePerKW/10000).toFixed(1)+'万/kW × '+base.sysKW+'kW',r:'¥'+(roi.installCost/10000).toFixed(0)+'万円',c:''},
+    {l:'STEP 5 · 補助金控除',f:'国'+nNat+'件＋都道府県'+nPref+'件',r:'▲¥'+(roi.totalSubsidy/10000).toFixed(0)+'万 → 実質¥'+(roi.netCost/10000).toFixed(0)+'万',c:'gr'},
+    {l:'STEP 6 · 年間経済効果',f:'自家消費70%×¥30/kWh ＋ 売電30%×¥12/kWh',r:'¥'+(roi.annSav/10000).toFixed(1)+'万/年',c:'hi'},
+    {l:'STEP 7 · 投資回収期間',f:'実質費用÷年間効果',r:roi.payback+'年',c:'gr'},
+  ] : [
+    {l:'STEP 1 · NEDO DATA',f:'METPV-20 '+base.ck+' · Hourly irradiance · Sunny '+avgSunny+'%',r:'Data loaded',c:''},
+    {l:'STEP 2 · TILTED IRRADIANCE',f:'Perez model · Tilt '+tilt+'° · Orientation ×'+base.orientFactor,r:'POA calculated',c:''},
+    {l:'STEP 3 · TEMP-CORRECTED OUTPUT',f:'Cell temp correction (-0.35%/°C) · Loss 0.85',r:(base.annualKWh/1000).toFixed(1)+'K kWh/yr',c:'hi'},
+    {l:'STEP 4 · INSTALL COST',f:'¥'+(COMPANIES[selCo].pricePerKW/10000).toFixed(1)+'万/kW × '+base.sysKW+'kW',r:'¥'+(roi.installCost/10000).toFixed(0)+'万',c:''},
+    {l:'STEP 5 · SUBSIDIES',f:'National '+nNat+' + Prefecture '+nPref,r:'▲¥'+(roi.totalSubsidy/10000).toFixed(0)+'万 → Net ¥'+(roi.netCost/10000).toFixed(0)+'万',c:'gr'},
+    {l:'STEP 6 · ANNUAL SAVINGS',f:'Self 70%×¥30/kWh + Export 30%×¥12/kWh',r:'¥'+(roi.annSav/10000).toFixed(1)+'万/yr',c:'hi'},
+    {l:'STEP 7 · PAYBACK',f:'Net cost ÷ annual savings',r:roi.payback+' years',c:'gr'},
+  ];
+  const el=document.getElementById('calcSteps'); el.innerHTML='';
+  steps.forEach(s=>{
+    const d=document.createElement('div'); d.className='calc-step';
+    d.innerHTML='<div class="step-line"><div class="step-dot"></div><div class="step-con"></div></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-form">'+s.f+'</div><div class="step-res '+s.c+'">'+s.r+'</div></div>';
+    el.appendChild(d);
+  });
+}
+
+function renderFactors(base) {
+  const isJa=lang==='ja';
+  const city=NEDO[base.ck]||NEDO.tokyo;
+  const factors=[
+    {icon:'☀',name:isJa?'年間日照':'Sun Hours',detail:'',score:Math.round((city.temp.reduce((a,b)=>a+b,0)/12-3)/12*70+30),color:'#f59e0b'},
+    {icon:'🏙',name:isJa?'遮蔽状況':'Shading',detail:'係数 '+base.shadingFactor.toFixed(2),score:Math.round(base.shadingFactor*100),color:'#1e3a5f'},
+    {icon:'🧭',name:isJa?'屋根の向き':'Orientation',detail:'係数 '+base.orientFactor,score:Math.round(base.orientFactor*100),color:'#059669'},
+    {icon:'📐',name:isJa?'屋上面積':'Roof Area',detail:Math.round(base.usableArea)+'m²',score:Math.min(Math.round(base.area/20),95),color:'#2d5f8a'},
+  ];
+  const el=document.getElementById('factorList'); el.innerHTML='';
+  factors.forEach(f=>{
+    const d=document.createElement('div'); d.className='factor';
+    d.innerHTML='<div class="factor-head"><div class="factor-name">'+f.icon+' '+f.name+' <span style="font-size:9px;color:var(--gray3)">'+f.detail+'</span></div><div class="factor-score">'+f.score+'</div></div><div class="factor-bg"><div class="factor-fill" style="width:0;background:'+f.color+'"></div></div>';
+    el.appendChild(d);
+    setTimeout(()=>d.querySelector('.factor-fill').style.width=f.score+'%',200);
+  });
+}
+
+function renderSubsidy(roi) {
+  const isJa=lang==='ja';
+  const el=document.getElementById('subsidyCard');
+  let rows=roi.subsidies.map(s=>'<div class="subsidy-row"><div><div class="sub-name">'+(isJa?s.name:(s.nameEn||s.name))+'</div><div class="sub-level">'+s.level+'</div></div><div class="sub-amt">▲¥'+(s.amount/10000).toFixed(0)+'万</div></div>').join('');
+  el.innerHTML='<div class="card-ttl"><span class="card-dot" style="background:var(--green)"></span>'+(isJa?'補助金シミュレーション':'Subsidy Calculation')+'</div>'+rows+'<div class="subsidy-total"><div class="sub-total-lbl">'+(isJa?'補助金合計':'Total Subsidies')+'</div><div class="sub-total-val">¥'+(roi.totalSubsidy/10000).toFixed(0)+'万</div></div><div style="display:flex;justify-content:space-between;margin-top:8px;padding:8px;background:var(--gray);border-radius:6px"><div style="font-size:10px;color:var(--gray3)">'+(isJa?'実質負担額（補助金後）':'Net Cost (after subsidy)')+'</div><div style="font-family:JetBrains Mono,monospace;font-size:12px;font-weight:600">¥'+(roi.netCost/10000).toFixed(0)+'万</div></div>';
+}
+
+function renderPanelGrid(count) {
+  const g=document.getElementById('panelGrid');
+  const n=Math.min(count,150);
+  const cols=Math.ceil(Math.sqrt(n*1.4));
+  g.style.gridTemplateColumns='repeat('+cols+',1fr)';
+  g.innerHTML='';
+  const total=cols*Math.ceil(n/cols);
+  for(let i=0;i<total;i++){
+    const c=document.createElement('div'); c.className='pcell';
+    if(i<n){const h=i/n; c.style.background=h<.3?'rgba(245,158,11,.4)':(i%2===0?'#1e3a5f':'#162a45');}
+    else{c.style.background='#374151';}
+    g.appendChild(c);
+  }
+}
+
+// ===== BATTERY =====
+function battInstallCost(kWh){return kWh<50?1000000+kWh*5000:kWh<200?2000000+kWh*3000:3500000+kWh*2000;}
+function battSubsidy(kWh,total){return Math.round(Math.min(total*.33,kWh*40000));}
+function recBattCap(annKWh){return Math.round(annKWh/365*.60*1.2/10)*10;}
+
+function toggleBatt() {
+  battOn=!battOn;
+  document.getElementById('battToggle').classList.toggle('on',battOn);
+  document.getElementById('battConfig').classList.toggle('show',battOn);
+  document.getElementById('battSection').style.display=battOn?'block':'none';
+  if(battOn&&curResults){
+    const rec=recBattCap(curResults.annualKWh);
+    const capEl=document.getElementById('battCap');
+    capEl.value=Math.min(rec,500);
+    document.getElementById('battCapVal').textContent=capEl.value+'kWh';
+    document.getElementById('battRec').innerHTML='🎯 '+(lang==='ja'?('推奨容量 <strong>'+rec+'kWh</strong>'):('Recommended <strong>'+rec+'kWh</strong>'));
+    renderBattMakers();
+    renderBattSection(curResults);
+  }
+}
+
+function renderBattMakers() {
+  const c=document.getElementById('battMakers'); c.innerHTML='';
+  const cap=parseInt(document.getElementById('battCap').value)||100;
+  BATTERY_MAKERS.forEach((m,i)=>{
+    const total=cap*m.pricePerKWh+battInstallCost(cap);
+    const d=document.createElement('div'); d.className='bm-card'+(i===selBM?' sel':'');
+    d.onclick=()=>{selBM=i;renderBattMakers();if(curResults)renderBattSection(curResults);};
+    d.innerHTML='<div class="bm-dot" style="background:'+m.color+'"></div><div class="bm-info"><div class="bm-name">'+(lang==='ja'?m.name:m.nameEn)+'</div><div class="bm-spec">'+(m.eff*100)+'%eff · '+m.cycleLife.toLocaleString()+'cy · '+m.warranty+'yr</div></div><div class="bm-price">¥'+(total/10000).toFixed(0)+'万</div>';
+    c.appendChild(d);
+  });
+}
+
+function renderBattSection(base) {
+  if(!battOn)return;
+  const isJa=lang==='ja';
+  const cap=parseInt(document.getElementById('battCap').value)||100;
+  const maker=BATTERY_MAKERS[selBM];
+  const roi=computeROI(base,selCo);
+  const selfWith=Math.min(.92,.70+cap/(base.annualKWh/365*10));
+  const battHW=Math.round(cap*maker.pricePerKWh);
+  const battInst=battInstallCost(cap);
+  const battGross=battHW+battInst;
+  const battSub=battSubsidy(cap,battGross);
+  const battNet=battGross-battSub;
+  const totalNet=roi.netCost+battNet;
+  const annBen=Math.round(base.annualKWh*selfWith*30+base.annualKWh*(1-selfWith)*12);
+  const annExtra=annBen-roi.annSav;
+  const cumB=[]; let runB=-totalNet,payB=null;
+  for(let y=1;y<=25;y++){const gen=base.annualKWh*Math.pow(.9945,y);const ben=Math.round(gen*selfWith*30*Math.pow(1.03,y)+gen*(1-selfWith)*12);const maint=Math.round(base.sysKW*5000+cap*3000);runB+=ben-maint;if(payB===null&&runB>=0)payB=y;cumB.push(Math.round(runB/10000));}
+  document.getElementById('battCompare').innerHTML=
+    '<div class="bc-col solar"><div class="bc-ttl">☀ '+(isJa?'太陽光のみ':'Solar Only')+'</div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'自家消費率':'Self-use')+'</span><span class="bc-val">70%</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'年間効果':'Annual')+'</span><span class="bc-val">¥'+(roi.annSav/10000).toFixed(1)+'万</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'初期費用':'Net cost')+'</span><span class="bc-val">¥'+(roi.netCost/10000).toFixed(0)+'万</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'回収年数':'Payback')+'</span><span class="bc-val">'+roi.payback+(isJa?'年':'yr')+'</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">25'+(isJa?'年利益':'yr')+'</span><span class="bc-val">+'+roi.cum[24]+'万</span></div></div>'+
+    '<div class="bc-col batt"><div class="bc-ttl">🔋 '+(isJa?'太陽光+蓄電池':'Solar+Battery')+'</div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'自家消費率':'Self-use')+'</span><span class="bc-val gr">'+Math.round(selfWith*100)+'%</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'年間効果':'Annual')+'</span><span class="bc-val gr">¥'+(annBen/10000).toFixed(1)+'万</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'初期費用':'Net cost')+'</span><span class="bc-val">¥'+(totalNet/10000).toFixed(0)+'万</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">'+(isJa?'回収年数':'Payback')+'</span><span class="bc-val gr">'+(payB||'>25')+(isJa?'年':'yr')+'</span></div>'+
+    '<div class="bc-row"><span class="bc-lbl">25'+(isJa?'年利益':'yr')+'</span><span class="bc-val gr">'+(cumB[24]>=0?'+':'')+cumB[24]+'万</span></div></div>';
+  const dailyGen=Math.round(base.annualKWh/365);
+  const selfUse=Math.round(dailyGen*selfWith);
+  const charged=Math.round(Math.min(dailyGen*(selfWith-.70),cap*.8));
+  const sold=Math.round(dailyGen*(1-selfWith));
+  const flowData=[
+    {icon:'☀',bg:'#fef3c7',lbl:'SOLAR',val:dailyGen+'kWh'},null,
+    {icon:'🏢',bg:'#e8f4fd',lbl:'SELF',val:selfUse+'kWh'},null,
+    {icon:'🔋',bg:'#d1fae5',lbl:'BATT '+cap+'kWh',val:'±'+charged+'kWh'},null,
+    {icon:'⚡',bg:'#f3e8ff',lbl:'GRID',val:sold+'kWh'},
+  ];
+  const fl=document.getElementById('battFlow'); fl.innerHTML='';
+  flowData.forEach(n=>{
+    if(!n){const a=document.createElement('div');a.className='flow-arrow';fl.appendChild(a);}
+    else{const d=document.createElement('div');d.className='flow-node';d.innerHTML='<div class="flow-icon" style="background:'+n.bg+'">'+n.icon+'</div><div class="flow-lbl">'+n.lbl+'</div><div class="flow-val">'+n.val+'</div>';fl.appendChild(d);}
+  });
+  document.getElementById('battCostBreak').innerHTML=
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'+
+    '<div style="padding:10px;background:var(--gray);border-radius:7px"><div style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--gray3);margin-bottom:5px">'+(isJa?'蓄電池費用':'BATTERY COST')+'</div>'+
+    '<div style="font-size:10px;color:var(--ink2);margin-bottom:2px">'+(isJa?'本体':'Hardware')+': ¥'+(battHW/10000).toFixed(0)+'万</div>'+
+    '<div style="font-size:10px;color:var(--ink2);margin-bottom:2px">'+(isJa?'工事':'Install')+': ¥'+(battInst/10000).toFixed(0)+'万</div>'+
+    '<div style="font-size:10px;color:var(--green);margin-bottom:2px">▲'+(isJa?'補助金':'Subsidy')+': ¥'+(battSub/10000).toFixed(0)+'万</div>'+
+    '<div style="font-family:DM Serif Display,serif;font-size:18px;color:var(--ink);border-top:1px solid var(--gray2);padding-top:5px;margin-top:3px">¥'+(battNet/10000).toFixed(0)+'万</div></div>'+
+    '<div style="padding:10px;background:rgba(5,150,105,.06);border:1px solid rgba(5,150,105,.2);border-radius:7px"><div style="font-family:JetBrains Mono,monospace;font-size:9px;color:var(--green);margin-bottom:5px">'+(isJa?'追加効果':'ADDED VALUE')+'</div>'+
+    '<div style="font-size:10px;color:var(--ink2);margin-bottom:2px">+¥'+(annExtra/10000).toFixed(1)+'万/年</div>'+
+    '<div style="font-size:10px;color:var(--ink2);margin-bottom:2px">'+cap+'kWh · '+(maker.eff*100)+'%eff</div>'+
+    '<div style="font-size:10px;color:var(--ink2)">'+(isJa?'停電対応':'backup')+': ~'+Math.round(cap*maker.eff/3)+'h</div></div></div>';
+  renderBattMakers();
+}
+
+// ===== MODAL =====
+function showModal(){document.getElementById('modalBg').classList.add('show');}
+function hideModal(){document.getElementById('modalBg').classList.remove('show');document.getElementById('mForm').style.display='';document.getElementById('mSuccess').classList.remove('show');}
+function submitLead(){
+  const name=document.getElementById('mName').value, phone=document.getElementById('mPhone').value;
+  if(!name||!phone){alert(lang==='ja'?'名前と電話番号を入力してください':'Please enter name and phone');return;}
+  document.getElementById('mForm').style.display='none';
+  document.getElementById('mSuccess').classList.add('show');
+  console.log('Lead:',{name,phone,email:document.getElementById('mEmail').value,company:document.getElementById('mCompany').value});
+}
+
+// ===== INIT =====
+window.addEventListener('load',()=>renderCoList());
+window.addEventListener('resize',()=>{
+  if(curResults){
+    const canvas=document.getElementById('roiCanvas');
+    canvas.width=0; canvas.height=0;
+    setTimeout(()=>renderROIChart(curResults),100);
+  }
+});
+</script>
+
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=geocoding&callback=initGoogleMap&loading=async" async defer></script>
+</body>
+</html>
