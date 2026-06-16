@@ -3,1332 +3,309 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SolarIQ Japan — 屋上太陽光発電シミュレーター</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<!-- Google Maps JavaScript API -->
-<script>
-  const GOOGLE_API_KEY = 'AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc';
-</script>
+<title>SolarIQ Japan</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script>const GKEY = 'AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc';</script>
 <style>
 :root {
-  --ink: #0a1628;
-  --ink2: #1e3a5f;
-  --ink3: #2d5f8a;
-  --sky: #e8f4fd;
-  --sky2: #d0e8f8;
-  --sun: #f59e0b;
-  --sun2: #fbbf24;
-  --sun3: #fef3c7;
-  --green: #059669;
-  --green2: #d1fae5;
-  --white: #ffffff;
-  --gray: #f0f4f8;
-  --gray2: #cbd5e1;
-  --gray3: #94a3b8;
-  --red: #dc2626;
-  --shadow: 0 1px 3px rgba(10,22,40,0.08), 0 4px 16px rgba(10,22,40,0.06);
-  --shadow-lg: 0 8px 32px rgba(10,22,40,0.12), 0 2px 8px rgba(10,22,40,0.06);
-  --radius: 12px;
-  --radius-sm: 8px;
+  --ink:#0a1628; --ink2:#1e3a5f; --ink3:#2d5f8a;
+  --sky:#e8f4fd; --sky2:#d0e8f8;
+  --sun:#f59e0b; --sun2:#fbbf24; --sun3:#fef3c7;
+  --green:#059669; --green2:#d1fae5;
+  --white:#fff; --gray:#f0f4f8; --gray2:#cbd5e1; --gray3:#94a3b8;
+  --shadow:0 1px 3px rgba(10,22,40,.08),0 4px 16px rgba(10,22,40,.06);
+  --shadow-lg:0 8px 32px rgba(10,22,40,.12);
+  --r:12px; --rs:8px;
 }
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--gray);color:var(--ink);font-family:'Outfit','Noto Sans JP',sans-serif;font-size:14px;min-height:100vh;}
 
-* { margin:0; padding:0; box-sizing:border-box; }
+/* HEADER */
+header{background:var(--ink);color:#fff;padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.25);}
+.logo{display:flex;align-items:center;gap:10px;}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,var(--sun),#f97316);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:15px;}
+.logo-name{font-family:'DM Serif Display',serif;font-size:19px;color:#fff;}
+.logo-name span{color:var(--sun2);}
+.logo-tag{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.4);letter-spacing:2px;}
+.lang-wrap{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:100px;padding:3px 5px;}
+.lang-btn{padding:3px 12px;border-radius:100px;font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all .2s;font-family:'Outfit',sans-serif;}
+.lang-btn.active{background:var(--sun);color:var(--ink);}
+.lang-btn:not(.active){background:transparent;color:rgba(255,255,255,.4);}
+.btn-contact{background:var(--sun);color:var(--ink);border:none;padding:7px 16px;border-radius:7px;font-size:12px;font-weight:600;cursor:pointer;transition:all .2s;}
+.btn-contact:hover{background:var(--sun2);}
+.status-dot{display:flex;align-items:center;gap:5px;font-size:10px;color:rgba(255,255,255,.4);font-family:'JetBrains Mono',monospace;}
+.status-dot::before{content:'';width:5px;height:5px;border-radius:50%;background:#22c55e;box-shadow:0 0 6px #22c55e;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
 
-body {
-  background: var(--gray);
-  color: var(--ink);
-  font-family: 'Outfit', 'Noto Sans JP', sans-serif;
-  min-height: 100vh;
-  font-size: 14px;
-  line-height: 1.5;
-}
+/* LAYOUT */
+.app{display:grid;grid-template-columns:300px 1fr;min-height:calc(100vh - 52px);}
 
-/* ===== HEADER ===== */
-header {
-  background: var(--ink);
-  color: white;
-  padding: 0 32px;
-  height: 56px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  box-shadow: 0 2px 16px rgba(0,0,0,0.2);
-}
+/* LEFT PANEL */
+.left{background:#fff;border-right:1px solid var(--gray2);overflow-y:auto;height:calc(100vh - 52px);position:sticky;top:52px;}
+.sec{padding:14px 16px;border-bottom:1px solid var(--gray);}
+.sec:last-child{border-bottom:none;}
+.sec-label{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px;}
+.sec-num{width:16px;height:16px;background:var(--ink);color:#fff;border-radius:50%;font-size:8px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.sec-label::after{content:'';flex:1;height:1px;background:var(--gray);}
 
-.logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.logo-mark {
-  width: 32px;
-  height: 32px;
-  background: linear-gradient(135deg, var(--sun), #f97316);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-}
-
-.logo-name {
-  font-family: 'DM Serif Display', serif;
-  font-size: 20px;
-  letter-spacing: -0.3px;
-  color: white;
-}
-
-.logo-name span {
-  color: var(--sun2);
-}
-
-.logo-tag {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  color: rgba(255,255,255,0.4);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-left: 2px;
-  margin-top: 2px;
-}
-
-.header-center {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 100px;
-  padding: 4px 6px;
-}
-
-.lang-btn {
-  padding: 4px 14px;
-  border-radius: 100px;
-  font-size: 12px;
-  font-weight: 500;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s;
-  font-family: 'Outfit', sans-serif;
-  letter-spacing: 0.3px;
-}
-
-.lang-btn.active {
-  background: var(--sun);
-  color: var(--ink);
-}
-
-.lang-btn:not(.active) {
-  background: transparent;
-  color: rgba(255,255,255,0.5);
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.status-dot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.status-dot::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
-  animation: pulse-green 2s ease-in-out infinite;
-}
-
-@keyframes pulse-green {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.4; }
-}
-
-.btn-contact {
-  background: var(--sun);
-  color: var(--ink);
-  border: none;
-  padding: 8px 18px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: 'Outfit', sans-serif;
-  transition: all 0.2s;
-  letter-spacing: 0.3px;
-}
-.btn-contact:hover { background: var(--sun2); transform: translateY(-1px); }
-
-/* ===== MAIN LAYOUT ===== */
-.app {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  grid-template-rows: auto 1fr;
-  min-height: calc(100vh - 56px);
-}
-
-/* ===== LEFT PANEL ===== */
-.left-panel {
-  background: var(--white);
-  border-right: 1px solid var(--gray2);
-  overflow-y: auto;
-  max-height: calc(100vh - 56px);
-  position: sticky;
-  top: 56px;
-}
-
-.panel-section {
-  padding: 16px 18px;
-  border-bottom: 1px solid var(--gray);
-}
-
-.panel-section:last-child { border-bottom: none; }
-
-.section-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  font-weight: 500;
-  color: var(--gray3);
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  margin-bottom: 14px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.section-label::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: var(--gray);
-}
-
-.section-num {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 18px;
-  background: var(--ink);
-  color: white;
-  border-radius: 50%;
-  font-size: 9px;
-  font-weight: 700;
-  margin-right: 4px;
-  flex-shrink: 0;
-}
-
-/* Address search */
-.address-search {
-  position: relative;
-}
-
-.address-input {
-  width: 100%;
-  padding: 12px 44px 12px 14px;
-  border: 1.5px solid var(--gray2);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  font-family: 'Noto Sans JP', sans-serif;
-  color: var(--ink);
-  background: var(--gray);
-  outline: none;
-  transition: all 0.2s;
-}
-.address-input:focus {
-  border-color: var(--ink3);
-  background: white;
-  box-shadow: 0 0 0 3px rgba(45,95,138,0.08);
-}
-.address-input::placeholder { color: var(--gray3); }
-
-.search-btn {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 30px;
-  height: 30px;
-  background: var(--ink);
-  border: none;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  transition: all 0.2s;
-}
-.search-btn:hover { background: var(--ink2); }
-
-.quick-cities {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.city-chip {
-  padding: 4px 10px;
-  background: var(--sky);
-  border: 1px solid var(--sky2);
-  border-radius: 100px;
-  font-size: 11px;
-  color: var(--ink2);
-  cursor: pointer;
-  transition: all 0.15s;
-  font-family: 'Noto Sans JP', sans-serif;
-}
-.city-chip:hover { background: var(--ink); color: white; border-color: var(--ink); }
+/* Address */
+.addr-wrap{position:relative;}
+.addr-input{width:100%;padding:10px 38px 10px 12px;border:1.5px solid var(--gray2);border-radius:var(--rs);font-size:13px;font-family:'Noto Sans JP',sans-serif;color:var(--ink);background:var(--gray);outline:none;transition:all .2s;}
+.addr-input:focus{border-color:var(--ink3);background:#fff;box-shadow:0 0 0 3px rgba(45,95,138,.08);}
+.addr-btn{position:absolute;right:7px;top:50%;transform:translateY(-50%);width:26px;height:26px;background:var(--ink);border:none;border-radius:5px;color:#fff;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;}
+.city-chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.chip{padding:3px 9px;background:var(--sky);border:1px solid var(--sky2);border-radius:100px;font-size:11px;color:var(--ink2);cursor:pointer;transition:all .15s;}
+.chip:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
 
 /* Form fields */
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.fields{display:flex;flex-direction:column;gap:10px;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:10px;font-weight:600;color:var(--ink2);display:flex;justify-content:space-between;}
+.field-unit{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);font-weight:400;}
+.field input,.field select{padding:8px 10px;border:1.5px solid var(--gray2);border-radius:var(--rs);font-size:13px;color:var(--ink);background:var(--gray);outline:none;transition:all .2s;font-family:'Outfit',sans-serif;}
+.field input:focus,.field select:focus{border-color:var(--ink3);background:#fff;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
 
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
+/* Sliders */
+.slider-wrap{display:flex;flex-direction:column;gap:5px;}
+.slider-head{display:flex;justify-content:space-between;align-items:baseline;}
+.slider-lbl{font-size:10px;font-weight:600;color:var(--ink2);}
+.slider-val{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--sun);background:var(--sun3);padding:1px 7px;border-radius:4px;}
+input[type=range]{width:100%;height:4px;-webkit-appearance:none;background:var(--gray2);border-radius:4px;outline:none;cursor:pointer;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--ink);border:3px solid #fff;box-shadow:0 0 0 1px var(--gray2);cursor:pointer;}
 
-.field label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink2);
-  letter-spacing: 0.3px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
+/* Companies */
+.co-list{display:flex;flex-direction:column;gap:7px;}
+.co-item{display:flex;align-items:center;gap:8px;padding:9px 11px;border:1.5px solid var(--gray2);border-radius:var(--rs);cursor:pointer;transition:all .15s;background:var(--gray);}
+.co-item.sel{border-color:var(--ink);background:var(--sky);}
+.co-item:hover:not(.sel){border-color:var(--gray3);background:#fff;}
+.co-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.co-info{flex:1;min-width:0;}
+.co-name{font-size:11px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.co-spec{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);margin-top:1px;}
+.co-roi{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--green);}
+.co-check{width:16px;height:16px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:9px;opacity:0;transition:.15s;}
+.co-item.sel .co-check{opacity:1;}
 
-.field-unit {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--gray3);
-  font-weight: 400;
-}
+/* Battery */
+.batt-toggle{display:flex;align-items:center;gap:9px;padding:10px 11px;background:var(--gray);border:1.5px solid var(--gray2);border-radius:var(--rs);cursor:pointer;transition:all .2s;}
+.batt-toggle.on{background:rgba(5,150,105,.07);border-color:var(--green);}
+.batt-lbl{flex:1;}
+.batt-lbl-title{font-size:11px;font-weight:600;}
+.batt-lbl-sub{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);margin-top:1px;}
+.sw{width:34px;height:18px;background:var(--gray2);border-radius:9px;position:relative;transition:background .2s;flex-shrink:0;}
+.batt-toggle.on .sw{background:var(--green);}
+.sw::after{content:'';position:absolute;width:12px;height:12px;background:#fff;border-radius:50%;top:3px;left:3px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.batt-toggle.on .sw::after{transform:translateX(16px);}
+.batt-config{display:none;flex-direction:column;gap:10px;margin-top:10px;padding:12px;background:rgba(5,150,105,.04);border:1px solid rgba(5,150,105,.2);border-radius:var(--rs);}
+.batt-config.show{display:flex;}
+.batt-rec{display:flex;align-items:center;gap:7px;padding:7px 10px;background:rgba(5,150,105,.1);border-radius:5px;font-size:10px;color:var(--green);font-weight:600;}
+.batt-makers{display:flex;flex-direction:column;gap:5px;}
+.bm-card{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1.5px solid var(--gray2);border-radius:var(--rs);cursor:pointer;background:var(--gray);transition:all .15s;}
+.bm-card.sel{border-color:var(--green);background:rgba(5,150,105,.05);}
+.bm-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.bm-info{flex:1;min-width:0;}
+.bm-name{font-size:11px;font-weight:600;}
+.bm-spec{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray3);margin-top:1px;}
+.bm-price{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green);font-weight:600;}
 
-.field input, .field select {
-  padding: 9px 12px;
-  border: 1.5px solid var(--gray2);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--ink);
-  background: var(--gray);
-  outline: none;
-  transition: all 0.2s;
-  font-family: 'Outfit', sans-serif;
-}
-.field input:focus, .field select:focus {
-  border-color: var(--ink3);
-  background: white;
-}
-.field select { cursor: pointer; }
+/* Run button */
+.run-btn{width:100%;padding:13px;background:var(--ink);color:#fff;border:none;border-radius:var(--rs);font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .25s;display:flex;align-items:center;justify-content:center;gap:7px;letter-spacing:.3px;}
+.run-btn:hover{background:var(--ink2);transform:translateY(-1px);box-shadow:var(--shadow-lg);}
 
-.field-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
+/* RIGHT PANEL */
+.right{display:flex;flex-direction:column;}
 
-/* Slider */
-.slider-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+/* MAP */
+.map-wrap{position:relative;height:420px;border-bottom:1px solid var(--gray2);flex-shrink:0;}
+#gmap{width:100%;height:100%;}
+.map-badge{position:absolute;top:10px;left:10px;background:rgba(10,22,40,.85);color:#fff;padding:6px 11px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:10px;backdrop-filter:blur(8px);z-index:10;pointer-events:none;}
+.map-badge .coord{color:var(--sun2);font-size:9px;margin-top:2px;}
+.map-ctrls{position:absolute;top:10px;right:10px;display:flex;flex-direction:column;gap:4px;z-index:10;}
+.map-btn{width:30px;height:30px;background:#fff;border:1px solid var(--gray2);border-radius:5px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;box-shadow:var(--shadow);transition:all .15s;color:var(--ink);}
+.map-btn:hover{background:var(--ink);color:#fff;}
+.view-btns{position:absolute;bottom:10px;left:10px;display:flex;gap:5px;z-index:10;}
+.vbtn{padding:5px 11px;background:rgba(255,255,255,.9);border:1px solid var(--gray2);border-radius:5px;font-size:11px;cursor:pointer;font-weight:500;transition:all .15s;box-shadow:var(--shadow);color:var(--ink);}
+.vbtn.on{background:var(--ink);color:#fff;border-color:var(--ink);}
 
-.slider-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.slider-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink2);
-}
-
-.slider-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--sun);
-  background: var(--sun3);
-  padding: 2px 8px;
-  border-radius: 4px;
-}
-
-input[type="range"] {
-  width: 100%;
-  height: 4px;
-  -webkit-appearance: none;
-  background: var(--gray2);
-  border-radius: 4px;
-  outline: none;
-  cursor: pointer;
-}
-
-input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: var(--ink);
-  border: 3px solid white;
-  box-shadow: 0 0 0 1px var(--gray2), var(--shadow);
-  cursor: pointer;
-  transition: transform 0.1s;
-}
-input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
-
-/* Analyze button */
-.analyze-btn {
-  width: 100%;
-  padding: 14px;
-  background: var(--ink);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.25s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  letter-spacing: 0.3px;
-  position: relative;
-  overflow: hidden;
-}
-
-.analyze-btn::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, var(--sun) 0%, transparent 60%);
-  opacity: 0;
-  transition: opacity 0.3s;
-}
-.analyze-btn:hover::before { opacity: 0.15; }
-.analyze-btn:hover { background: var(--ink2); transform: translateY(-1px); box-shadow: var(--shadow-lg); }
-.analyze-btn:active { transform: translateY(0); }
-
-.analyze-btn .btn-icon {
-  font-size: 16px;
-  position: relative;
-  z-index: 1;
-}
-.analyze-btn .btn-text { position: relative; z-index: 1; }
-
-/* Company selector */
-.company-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.company-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1.5px solid var(--gray2);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.15s;
-  background: var(--gray);
-}
-
-.company-item.selected {
-  border-color: var(--ink);
-  background: var(--sky);
-}
-
-.company-item:hover:not(.selected) {
-  border-color: var(--gray3);
-  background: white;
-}
-
-.company-color {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.company-info { flex: 1; min-width: 0; }
-
-.company-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.company-spec {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--gray3);
-  margin-top: 1px;
-}
-
-.company-roi {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--green);
-  white-space: nowrap;
-}
-
-.company-check {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: var(--ink);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s;
-}
-.company-item.selected .company-check { opacity: 1; }
-
-/* ===== RIGHT PANEL ===== */
-.right-panel {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 56px);
-}
-
-/* Map area */
-.map-container {
-  position: relative;
-  background: var(--sky);
-  height: calc(100vh - 56px);
-  max-height: 100vh;
-  overflow: hidden;
-  border-bottom: 1px solid var(--gray2);
-  position: sticky;
-  top: 56px;
-}
-
-/* Simulated satellite map */
-.map-canvas {
-  width: 100%;
-  height: 100%;
-  position: relative;
-}
-
-#googleMap {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Solar overlay canvas on top of Google Maps */
-#solarOverlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.map-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
-.map-controls {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  z-index: 10;
-}
-
-.map-ctrl-btn {
-  width: 32px;
-  height: 32px;
-  background: white;
-  border: 1px solid var(--gray2);
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 14px;
-  box-shadow: var(--shadow);
-  transition: all 0.15s;
-  color: var(--ink);
-}
-.map-ctrl-btn:hover { background: var(--ink); color: white; }
-
-.map-badge {
-  position: absolute;
-  top: 12px;
-  left: 12px;
-  background: rgba(10,22,40,0.85);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  letter-spacing: 1px;
-  backdrop-filter: blur(8px);
-  z-index: 10;
-}
-
-.map-badge .coord {
-  color: var(--sun2);
-  margin-top: 2px;
-  font-size: 9px;
-}
-
-.sun-path-toggle {
-  position: absolute;
-  bottom: 12px;
-  left: 12px;
-  display: flex;
-  gap: 6px;
-  z-index: 10;
-}
-
-.toggle-btn {
-  padding: 6px 12px;
-  background: rgba(255,255,255,0.9);
-  border: 1px solid var(--gray2);
-  border-radius: 6px;
-  font-size: 11px;
-  cursor: pointer;
-  font-family: 'Outfit', sans-serif;
-  font-weight: 500;
-  transition: all 0.15s;
-  box-shadow: var(--shadow);
-  color: var(--ink);
-}
-.toggle-btn.active { background: var(--ink); color: white; border-color: var(--ink); }
-.toggle-btn:hover:not(.active) { background: var(--sky); }
+/* Sun slider */
+.sun-slider-panel{display:none;position:absolute;bottom:48px;left:10px;right:10px;z-index:10;background:rgba(10,22,40,.88);backdrop-filter:blur(8px);border-radius:10px;padding:11px 14px;}
+.sun-slider-panel.show{display:block;}
+.sun-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;}
+.sun-top-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,.5);letter-spacing:1px;}
+.sun-time{font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--sun2);font-weight:600;}
+.sun-row{display:flex;align-items:center;gap:8px;}
+.sun-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:9px;}
+.sun-stat{text-align:center;padding:5px;background:rgba(255,255,255,.05);border-radius:5px;}
+.sun-stat-lbl{font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,.35);}
+.sun-stat-val{font-size:13px;color:var(--sun2);font-weight:600;margin-top:1px;}
 
 /* Loading overlay */
-.loading-overlay {
-  display: none;
-  position: absolute;
-  inset: 0;
-  background: rgba(10,22,40,0.7);
-  z-index: 20;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 16px;
-  backdrop-filter: blur(4px);
-}
-.loading-overlay.show { display: flex; }
+.map-loading{display:none;position:absolute;inset:0;background:rgba(10,22,40,.65);z-index:20;align-items:center;justify-content:center;flex-direction:column;gap:14px;backdrop-filter:blur(3px);}
+.map-loading.show{display:flex;}
+.spinner{width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--sun);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-msg{font-family:'JetBrains Mono',monospace;font-size:11px;color:rgba(255,255,255,.6);letter-spacing:1px;}
 
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid rgba(255,255,255,0.2);
-  border-top-color: var(--sun);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.loading-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  align-items: center;
-}
-
-.loading-step {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: rgba(255,255,255,0.5);
-  letter-spacing: 1px;
-  transition: color 0.3s;
-}
-.loading-step.active { color: var(--sun2); }
-.loading-step.done { color: rgba(255,255,255,0.8); }
-
-/* ===== RESULTS SECTION ===== */
-.results-section {
-  padding: 24px 28px;
-  flex: 1;
-}
-
-.results-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 300px;
-  color: var(--gray3);
-  gap: 12px;
-}
-
-.empty-icon { font-size: 48px; opacity: 0.4; }
-
-.empty-text {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--gray3);
-}
-
-.empty-sub {
-  font-size: 12px;
-  color: var(--gray2);
-  text-align: center;
-  max-width: 280px;
-  line-height: 1.6;
-}
-
-.results-content { display: none; }
-.results-content.show { display: block; }
+/* RESULTS */
+.results-area{padding:20px 24px 60px;flex:1;}
+.results-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:280px;color:var(--gray3);gap:10px;}
+.empty-icon{font-size:44px;opacity:.35;}
+.empty-txt{font-size:15px;font-weight:500;}
+.empty-sub{font-size:12px;color:var(--gray2);text-align:center;max-width:260px;line-height:1.6;}
+.results-body{display:none;}
+.results-body.show{display:block;}
 
 /* Results header */
-.results-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 20px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--gray);
-}
+.rh{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--gray);}
+.rh-addr{font-size:14px;font-weight:600;color:var(--ink);}
+.rh-meta{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);margin-top:3px;letter-spacing:.5px;}
+.score-pill{display:flex;align-items:center;gap:8px;background:var(--sky);border:1px solid var(--sky2);padding:7px 14px;border-radius:100px;}
+.score-lbl{font-size:10px;color:var(--ink2);font-weight:500;}
+.score-num{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);}
+.score-max{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);}
 
-.results-address-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.kpi{background:#fff;border:1px solid var(--gray2);border-radius:var(--r);padding:12px 14px;position:relative;overflow:hidden;}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.kpi.blue::before{background:var(--ink3);}
+.kpi.orange::before{background:var(--sun);}
+.kpi.green::before{background:var(--green);}
+.kpi.gray::before{background:var(--gray3);}
+.kpi-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:6px;}
+.kpi-val{font-family:'DM Serif Display',serif;font-size:24px;color:var(--ink);line-height:1;}
+.kpi-val.orange{color:var(--sun);}
+.kpi-val.green{color:var(--green);}
+.kpi-val.blue{color:var(--ink3);}
+.kpi-unit{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);margin-top:3px;}
 
-.results-address {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink);
-  font-family: 'Noto Sans JP', sans-serif;
-}
+/* Cards grid */
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+.card{background:#fff;border:1px solid var(--gray2);border-radius:var(--r);padding:16px 18px;}
+.card-ttl{font-size:11px;font-weight:600;color:var(--ink2);letter-spacing:.5px;text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;}
+.card-dot{width:5px;height:5px;border-radius:50%;background:var(--sun);}
 
-.results-meta {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--gray3);
-  letter-spacing: 1px;
-}
+/* Bar chart */
+.bar-chart{display:flex;align-items:flex-end;gap:3px;height:95px;padding-bottom:18px;position:relative;}
+.bar-chart::after{content:'';position:absolute;bottom:18px;left:0;right:0;height:1px;background:var(--gray);}
+.bar-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:3px;height:100%;}
+.bar-fill{width:100%;border-radius:3px 3px 0 0;min-height:2px;transition:height .8s cubic-bezier(.34,1.56,.64,1);position:relative;}
+.bar-fill:hover::before{content:attr(data-v);position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:2px 5px;border-radius:3px;font-size:8px;white-space:nowrap;z-index:5;font-family:'JetBrains Mono',monospace;}
+.bar-mo{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray3);}
 
-.score-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: var(--sky);
-  border: 1px solid var(--sky2);
-  padding: 8px 16px;
-  border-radius: 100px;
-}
+/* Calc steps */
+.calc-steps{display:flex;flex-direction:column;}
+.calc-step{display:flex;align-items:stretch;gap:12px;padding:8px 0;border-bottom:1px solid var(--gray);}
+.calc-step:last-child{border-bottom:none;}
+.step-line{display:flex;flex-direction:column;align-items:center;}
+.step-dot{width:7px;height:7px;border-radius:50%;background:var(--sun);flex-shrink:0;margin-top:3px;}
+.step-con{width:1px;flex:1;background:var(--gray2);margin:3px 0;}
+.calc-step:last-child .step-con{display:none;}
+.step-body{flex:1;}
+.step-lbl{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:1px;}
+.step-form{font-size:11px;color:var(--ink2);margin-bottom:2px;}
+.step-res{font-family:'DM Serif Display',serif;font-size:14px;color:var(--ink);}
+.step-res.hi{color:var(--sun);}
+.step-res.gr{color:var(--green);}
 
-.score-label-text {
-  font-size: 11px;
-  color: var(--ink2);
-  font-weight: 500;
-}
+/* Factors */
+.factor-list{display:flex;flex-direction:column;gap:9px;}
+.factor{display:flex;flex-direction:column;gap:3px;}
+.factor-head{display:flex;justify-content:space-between;}
+.factor-name{font-size:10px;font-weight:500;color:var(--ink2);}
+.factor-score{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink);}
+.factor-bg{height:3px;background:var(--gray);border-radius:3px;overflow:hidden;}
+.factor-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.34,1.56,.64,1);}
 
-.score-num {
-  font-family: 'DM Serif Display', serif;
-  font-size: 22px;
-  color: var(--ink);
-  line-height: 1;
-}
+/* Subsidy */
+.subsidy-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--gray);}
+.subsidy-row:last-child{border:none;}
+.sub-name{font-size:10px;font-weight:600;color:var(--ink2);}
+.sub-level{font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray3);margin-top:1px;}
+.sub-amt{font-family:'DM Serif Display',serif;font-size:14px;color:var(--green);}
+.subsidy-total{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:10px;background:var(--green2);border-radius:7px;}
+.sub-total-lbl{font-size:11px;font-weight:600;color:var(--green);}
+.sub-total-val{font-family:'DM Serif Display',serif;font-size:20px;color:var(--green);}
 
-.score-max {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--gray3);
-}
+/* Panel grid viz */
+.panel-viz{display:grid;gap:2px;padding:10px;background:var(--ink);border-radius:8px;}
+.pcell{aspect-ratio:1;border-radius:2px;border:1px solid rgba(255,255,255,.07);}
 
-/* KPI row */
-.kpi-row {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 20px;
-}
+/* Battery results */
+.batt-compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.bc-col{border-radius:8px;padding:12px;border:2px solid transparent;}
+.bc-col.solar{background:var(--sky);border-color:var(--sky2);}
+.bc-col.batt{background:rgba(5,150,105,.06);border-color:rgba(5,150,105,.3);}
+.bc-ttl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.bc-col.solar .bc-ttl{color:var(--ink2);}
+.bc-col.batt .bc-ttl{color:var(--green);}
+.bc-row{display:flex;justify-content:space-between;margin-bottom:5px;}
+.bc-lbl{font-size:10px;color:var(--gray3);}
+.bc-val{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--ink);}
+.bc-val.gr{color:var(--green);}
 
-.kpi-card {
-  background: var(--white);
-  border: 1px solid var(--gray2);
-  border-radius: var(--radius);
-  padding: 14px 16px;
-  position: relative;
-  overflow: hidden;
-  transition: box-shadow 0.2s;
-}
-.kpi-card:hover { box-shadow: var(--shadow); }
+/* Flow diagram */
+.flow{display:flex;align-items:center;gap:0;overflow-x:auto;padding:4px 0;}
+.flow-node{display:flex;flex-direction:column;align-items:center;gap:3px;min-width:56px;}
+.flow-icon{width:38px;height:38px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
+.flow-lbl{font-size:8px;font-family:'JetBrains Mono',monospace;color:var(--gray3);text-align:center;}
+.flow-val{font-size:9px;font-weight:600;color:var(--ink2);text-align:center;}
+.flow-arrow{flex:1;min-width:14px;height:2px;background:linear-gradient(90deg,var(--gray2),var(--green),var(--gray2));position:relative;margin:0 2px;margin-bottom:18px;}
+.flow-arrow::after{content:'▶';position:absolute;right:-5px;top:-7px;font-size:9px;color:var(--green);}
 
-.kpi-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 3px;
-}
-.kpi-card.blue::before { background: var(--ink3); }
-.kpi-card.orange::before { background: var(--sun); }
-.kpi-card.green::before { background: var(--green); }
-.kpi-card.gray::before { background: var(--gray3); }
-
-.kpi-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--gray3);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.kpi-value {
-  font-family: 'DM Serif Display', serif;
-  font-size: 26px;
-  color: var(--ink);
-  line-height: 1;
-  margin-bottom: 4px;
-}
-
-.kpi-value.orange { color: var(--sun); }
-.kpi-value.green { color: var(--green); }
-.kpi-value.blue { color: var(--ink3); }
-
-.kpi-unit {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: var(--gray3);
-}
-
-/* Two column layout */
-.results-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-.result-card {
-  background: var(--white);
-  border: 1px solid var(--gray2);
-  border-radius: var(--radius);
-  padding: 18px 20px;
-}
-
-.card-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink2);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  margin-bottom: 16px;
-  font-family: 'JetBrains Mono', monospace;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.card-title-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--sun);
-}
-
-/* Monthly chart */
-.bar-chart {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 100px;
-  padding-bottom: 20px;
-  position: relative;
-}
-
-.bar-chart::after {
-  content: '';
-  position: absolute;
-  bottom: 20px;
-  left: 0;
-  right: 0;
-  height: 1px;
-  background: var(--gray);
-}
-
-.bar-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  height: 100%;
-}
-
-.bar-fill {
-  width: 100%;
-  border-radius: 3px 3px 0 0;
-  min-height: 2px;
-  transition: height 1s cubic-bezier(0.34, 1.56, 0.64, 1);
-  position: relative;
-}
-
-.bar-fill:hover::after {
-  content: attr(data-val);
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: var(--ink);
-  color: white;
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  white-space: nowrap;
-  z-index: 10;
-}
-
-.bar-month {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 8px;
-  color: var(--gray3);
-  letter-spacing: 0px;
-}
-
-/* ROI timeline */
-.roi-chart {
-  position: relative;
-  height: 100px;
-}
-
-/* Calculation steps */
-.calc-steps {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
-
-.calc-step {
-  display: flex;
-  align-items: stretch;
-  gap: 14px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--gray);
-  animation: fadeSlideIn 0.4s ease both;
-}
-.calc-step:last-child { border-bottom: none; }
-
-@keyframes fadeSlideIn {
-  from { opacity: 0; transform: translateX(-12px); }
-  to { opacity: 1; transform: translateX(0); }
-}
-
-.calc-step-line {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-.calc-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--sun);
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.calc-connector {
-  width: 1px;
-  flex: 1;
-  background: var(--gray2);
-  margin: 3px 0;
-}
-
-.calc-step:last-child .calc-connector { display: none; }
-
-.calc-body { flex: 1; }
-
-.calc-label {
-  font-size: 10px;
-  font-weight: 600;
-  color: var(--gray3);
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
-  margin-bottom: 2px;
-  font-family: 'JetBrains Mono', monospace;
-}
-
-.calc-formula {
-  font-size: 12px;
-  color: var(--ink2);
-  margin-bottom: 2px;
-}
-
-.calc-result {
-  font-family: 'DM Serif Display', serif;
-  font-size: 16px;
-  color: var(--ink);
-}
-
-.calc-result.highlight { color: var(--sun); }
-.calc-result.green { color: var(--green); }
-
-/* Factor bars */
-.factor-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.factor-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.factor-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.factor-name {
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink2);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.factor-score {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--ink);
-}
-
-.factor-bar-bg {
-  height: 4px;
-  background: var(--gray);
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.factor-bar-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 1.2s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Panel layout */
-.solar-panel-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(22px, 1fr));
-  gap: 2px;
-  padding: 12px;
-  background: var(--ink);
-  border-radius: var(--radius-sm);
-}
-
-.solar-cell {
-  aspect-ratio: 1;
-  border-radius: 2px;
-  border: 1px solid rgba(255,255,255,0.08);
-  transition: all 0.3s;
-}
+/* ROI canvas */
+.roi-wrap{height:95px;position:relative;}
 
 /* CTA */
-.cta-card {
-  background: var(--ink);
-  border-radius: var(--radius);
-  padding: 24px 28px;
-  display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 24px;
-  margin-top: 16px;
-}
-
-.cta-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 20px;
-  color: white;
-  margin-bottom: 6px;
-}
-
-.cta-desc {
-  font-size: 13px;
-  color: rgba(255,255,255,0.5);
-  line-height: 1.6;
-}
-
-.cta-btns {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 180px;
-}
-
-.btn-cta-primary {
-  padding: 12px 20px;
-  background: var(--sun);
-  color: var(--ink);
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
-  white-space: nowrap;
-}
-.btn-cta-primary:hover { background: var(--sun2); transform: translateY(-1px); }
-
-.btn-cta-secondary {
-  padding: 12px 20px;
-  background: rgba(255,255,255,0.08);
-  color: rgba(255,255,255,0.7);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
-  font-size: 13px;
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: center;
-  white-space: nowrap;
-}
-.btn-cta-secondary:hover { background: rgba(255,255,255,0.15); color: white; }
+.cta{background:var(--ink);border-radius:var(--r);padding:20px 24px;display:grid;grid-template-columns:1fr auto;align-items:center;gap:20px;margin-top:14px;}
+.cta-ttl{font-family:'DM Serif Display',serif;font-size:18px;color:#fff;margin-bottom:5px;}
+.cta-desc{font-size:12px;color:rgba(255,255,255,.45);line-height:1.6;}
+.cta-btns{display:flex;flex-direction:column;gap:7px;min-width:160px;}
+.btn-pri{padding:11px 18px;background:var(--sun);color:var(--ink);border:none;border-radius:var(--rs);font-family:'Outfit',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;}
+.btn-pri:hover{background:var(--sun2);transform:translateY(-1px);}
+.btn-sec{padding:11px 18px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.6);border:1px solid rgba(255,255,255,.15);border-radius:var(--rs);font-size:12px;cursor:pointer;text-align:center;transition:all .2s;}
+.btn-sec:hover{background:rgba(255,255,255,.15);color:#fff;}
 
 /* Modal */
-.modal-overlay {
-  display: none;
-  position: fixed;
-  inset: 0;
-  background: rgba(10,22,40,0.6);
-  z-index: 200;
-  align-items: center;
-  justify-content: center;
-  backdrop-filter: blur(4px);
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(10,22,40,.6);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px);}
+.modal-bg.show{display:flex;}
+.modal{background:#fff;border-radius:14px;padding:32px;width:420px;max-width:90vw;box-shadow:0 24px 80px rgba(10,22,40,.25);}
+.modal-ttl{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:5px;}
+.modal-desc{font-size:12px;color:var(--gray3);margin-bottom:20px;line-height:1.6;}
+.mf{margin-bottom:10px;}
+.mf label{display:block;font-size:10px;font-weight:600;color:var(--ink2);margin-bottom:4px;}
+.mf input{width:100%;padding:9px 11px;border:1.5px solid var(--gray2);border-radius:var(--rs);font-size:13px;color:var(--ink);outline:none;background:var(--gray);transition:all .2s;}
+.mf input:focus{border-color:var(--ink3);background:#fff;}
+.m-actions{display:flex;gap:8px;margin-top:16px;}
+.m-submit{flex:1;padding:11px;background:var(--ink);color:#fff;border:none;border-radius:var(--rs);font-size:13px;font-weight:600;cursor:pointer;}
+.m-cancel{padding:11px 16px;background:transparent;color:var(--gray3);border:1.5px solid var(--gray2);border-radius:var(--rs);font-size:13px;cursor:pointer;}
+.m-success{display:none;text-align:center;padding:16px 0 0;}
+.m-success.show{display:block;}
+.m-ok-icon{font-size:48px;margin-bottom:10px;}
+.m-ok-ttl{font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink);margin-bottom:5px;}
+.m-ok-desc{font-size:12px;color:var(--gray3);line-height:1.6;}
+
+/* i18n */
+.ja,.en{display:none;}
+body.ja .ja{display:inline;}
+body.en .en{display:inline;}
+body.ja .ja-b{display:block;}
+body.en .en-b{display:block;}
+.ja-b,.en-b{display:none;}
+
+@media(max-width:900px){
+  .app{grid-template-columns:1fr;}
+  .left{height:auto;position:static;}
+  .map-wrap{height:50vh;}
+  .kpis{grid-template-columns:repeat(2,1fr);}
+  .cards{grid-template-columns:1fr;}
+  .cta{grid-template-columns:1fr;}
 }
-.modal-overlay.show { display: flex; }
-
-.modal {
-  background: white;
-  border-radius: 16px;
-  padding: 36px;
-  width: 440px;
-  max-width: 90vw;
-  box-shadow: 0 24px 80px rgba(10,22,40,0.25);
-  animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-@keyframes modalIn {
-  from { transform: scale(0.92) translateY(20px); opacity: 0; }
-  to { transform: scale(1) translateY(0); opacity: 1; }
-}
-
-.modal-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 22px;
-  color: var(--ink);
-  margin-bottom: 6px;
-}
-
-.modal-desc {
-  font-size: 13px;
-  color: var(--gray3);
-  margin-bottom: 24px;
-  line-height: 1.6;
-}
-
-.modal-field {
-  margin-bottom: 12px;
-}
-
-.modal-field label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink2);
-  margin-bottom: 5px;
-  letter-spacing: 0.3px;
-}
-
-.modal-field input {
-  width: 100%;
-  padding: 10px 12px;
-  border: 1.5px solid var(--gray2);
-  border-radius: var(--radius-sm);
-  font-size: 13px;
-  color: var(--ink);
-  outline: none;
-  transition: all 0.2s;
-  font-family: 'Noto Sans JP', sans-serif;
-  background: var(--gray);
-}
-.modal-field input:focus { border-color: var(--ink3); background: white; }
-
-.modal-actions {
-  display: flex;
-  gap: 10px;
-  margin-top: 20px;
-}
-
-.modal-submit {
-  flex: 1;
-  padding: 12px;
-  background: var(--ink);
-  color: white;
-  border: none;
-  border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.modal-submit:hover { background: var(--ink2); }
-
-.modal-cancel {
-  padding: 12px 20px;
-  background: transparent;
-  color: var(--gray3);
-  border: 1.5px solid var(--gray2);
-  border-radius: var(--radius-sm);
-  font-family: 'Outfit', sans-serif;
-  font-size: 14px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.modal-cancel:hover { color: var(--ink); border-color: var(--gray3); }
-
-.modal-success {
-  display: none;
-  text-align: center;
-  padding: 20px 0 0;
-}
-.modal-success.show { display: block; }
-
-.success-icon { font-size: 52px; margin-bottom: 12px; }
-.success-title {
-  font-family: 'DM Serif Display', serif;
-  font-size: 22px;
-  color: var(--ink);
-  margin-bottom: 6px;
-}
-.success-desc { font-size: 13px; color: var(--gray3); line-height: 1.6; }
-
-/* ===== BATTERY MODULE ===== */
-.battery-toggle { display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--gray);border:1.5px solid var(--gray2);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.2s;user-select:none; }
-.battery-toggle.active { background:linear-gradient(135deg,rgba(5,150,105,0.08),rgba(5,150,105,0.04));border-color:var(--green); }
-.battery-toggle-icon { font-size:20px;flex-shrink:0; }
-.battery-toggle-label { flex:1; }
-.battery-toggle-title { font-size:12px;font-weight:600;color:var(--ink); }
-.battery-toggle-sub { font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray3);margin-top:1px; }
-.battery-toggle-switch { width:36px;height:20px;background:var(--gray2);border-radius:10px;position:relative;transition:background 0.2s;flex-shrink:0; }
-.battery-toggle.active .battery-toggle-switch { background:var(--green); }
-.battery-toggle-switch::after { content:'';position:absolute;width:14px;height:14px;background:white;border-radius:50%;top:3px;left:3px;transition:transform 0.2s;box-shadow:0 1px 3px rgba(0,0,0,0.2); }
-.battery-toggle.active .battery-toggle-switch::after { transform:translateX(16px); }
-.battery-config { display:none;flex-direction:column;gap:12px;margin-top:12px;padding:14px;background:linear-gradient(135deg,rgba(5,150,105,0.04),rgba(5,150,105,0.02));border:1px solid rgba(5,150,105,0.2);border-radius:var(--radius-sm);animation:fadeIn 0.2s ease; }
-.battery-config.show { display:flex; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
-.battery-rec-badge { display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(5,150,105,0.1);border-radius:6px;font-size:11px;color:var(--green);font-weight:600; }
-.compare-header { display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px; }
-.compare-col { border-radius:var(--radius-sm);padding:14px;border:2px solid transparent; }
-.compare-col.solar-only { background:var(--sky);border-color:var(--sky2); }
-.compare-col.solar-battery { background:rgba(5,150,105,0.06);border-color:rgba(5,150,105,0.3); }
-.compare-col-title { font-size:11px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px; }
-.compare-col.solar-only .compare-col-title { color:var(--ink2); }
-.compare-col.solar-battery .compare-col-title { color:var(--green); }
-.compare-stat { display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px; }
-.compare-stat-label { font-size:10px;color:var(--gray3); }
-.compare-stat-value { font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--ink); }
-.compare-stat-value.better { color:var(--green); }
-.charge-flow { display:flex;align-items:center;gap:0;margin:16px 0;overflow-x:auto;padding-bottom:4px; }
-.flow-node { display:flex;flex-direction:column;align-items:center;gap:4px;min-width:60px; }
-.flow-icon { width:42px;height:42px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px; }
-.flow-label { font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--gray3);letter-spacing:0.3px;text-align:center; }
-.flow-value { font-size:10px;font-weight:600;color:var(--ink2);text-align:center; }
-.flow-arrow { flex:1;min-width:16px;height:2px;background:linear-gradient(90deg,var(--gray2),var(--green),var(--gray2));position:relative;margin:0 2px;margin-bottom:20px; }
-.flow-arrow::after { content:'▶';position:absolute;right:-6px;top:-8px;font-size:9px;color:var(--green); }
-.hourly-chart { display:flex;align-items:flex-end;gap:2px;height:80px;margin-top:12px;padding-bottom:16px;position:relative; }
-.hourly-chart::after { content:'';position:absolute;bottom:16px;left:0;right:0;height:1px;background:var(--gray); }
-.hourly-bar { flex:1;border-radius:2px 2px 0 0;min-height:2px;cursor:pointer;position:relative;transition:opacity 0.15s; }
-.hourly-bar:hover { opacity:0.75; }
-.hourly-bar:hover::before { content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--ink);color:white;padding:3px 6px;border-radius:4px;font-size:9px;white-space:nowrap;z-index:10;font-family:'JetBrains Mono',monospace; }
-.hourly-xlabel { font-family:'JetBrains Mono',monospace;font-size:8px;color:var(--gray3);text-align:center; }
-.battery-maker-list { display:flex;flex-direction:column;gap:6px; }
-.battery-maker-card { display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--gray2);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s;background:var(--gray); }
-.battery-maker-card.selected { border-color:var(--green);background:rgba(5,150,105,0.05); }
-.battery-maker-card:hover:not(.selected) { border-color:var(--gray3);background:white; }
-.battery-maker-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
-.battery-maker-info { flex:1;min-width:0; }
-.battery-maker-name { font-size:12px;font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
-.battery-maker-spec { font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);margin-top:1px; }
-.battery-maker-price { font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--green);white-space:nowrap; }
-
-/* Responsive */
-@media (max-width: 900px) {
-  .app { grid-template-columns: 1fr; }
-  .left-panel { position: static; max-height: none; }
-  .map-container { height: 55vh; position: relative; top: 0; }
-  .kpi-row { grid-template-columns: repeat(2, 1fr); }
-  .results-grid { grid-template-columns: 1fr; }
-  .cta-card { grid-template-columns: 1fr; }
-}
-
-/* i18n hidden */
-.ja, .en { display: none; }
-body.lang-ja .ja { display: inline; }
-body.lang-en .en { display: inline; }
-body.lang-ja .ja-block { display: block; }
-body.lang-en .en-block { display: block; }
-.ja-block, .en-block { display: none; }
 </style>
 </head>
-<body class="lang-ja">
+<body class="ja">
 
-<!-- HEADER -->
 <header>
   <div class="logo">
     <div class="logo-mark">☀</div>
@@ -1337,2485 +314,844 @@ body.lang-en .en-block { display: block; }
       <div class="logo-tag">Japan · Solar Intelligence</div>
     </div>
   </div>
-
-  <div class="header-center">
-    <button class="lang-btn active" id="btnJa" onclick="setLang('ja')">日本語</button>
-    <button class="lang-btn" id="btnEn" onclick="setLang('en')">English</button>
+  <div class="lang-wrap">
+    <button class="lang-btn active" onclick="setLang('ja')">日本語</button>
+    <button class="lang-btn" onclick="setLang('en')">English</button>
   </div>
-
-  <div class="header-right">
-    <div class="status-dot">
-      <span class="ja">システム正常稼働中</span>
-      <span class="en">System Online</span>
-    </div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="status-dot"><span class="ja">システム正常稼働中</span><span class="en">System Online</span></div>
     <button class="btn-contact" onclick="showModal()">
-      <span class="ja">📞 無料相談</span>
-      <span class="en">📞 Free Consult</span>
+      <span class="ja">📞 無料相談</span><span class="en">📞 Free Consult</span>
     </button>
   </div>
 </header>
 
-<!-- APP LAYOUT -->
 <div class="app">
+<!-- LEFT -->
+<div class="left">
 
-  <!-- LEFT PANEL -->
-  <div class="left-panel">
-
-    <!-- Step 1: Address -->
-    <div class="panel-section">
-      <div class="section-label">
-        <span class="section-num">1</span>
-        <span class="ja">建物の住所</span>
-        <span class="en">Building Address</span>
-      </div>
-      <div class="address-search">
-        <input type="text" class="address-input" id="addressInput"
-          placeholder="例：東京都新宿区西新宿2-8-1"
-          value="東京都新宿区西新宿2-8-1"
-          onkeydown="if(event.key==='Enter') runAnalysis()">
-        <button class="search-btn" onclick="runAnalysis()">🔍</button>
-      </div>
-      <div class="quick-cities">
-        <span class="city-chip" onclick="setCity('tokyo')">🗼 東京</span>
-        <span class="city-chip" onclick="setCity('osaka')">🏯 大阪</span>
-        <span class="city-chip" onclick="setCity('nagoya')">🏙 名古屋</span>
-        <span class="city-chip" onclick="setCity('fukuoka')">🌸 福岡</span>
-      </div>
+  <!-- 1: Address -->
+  <div class="sec">
+    <div class="sec-label"><span class="sec-num">1</span>
+      <span class="ja">建物の住所</span><span class="en">Building Address</span>
     </div>
+    <div class="addr-wrap">
+      <input type="text" class="addr-input" id="addrInput" value="東京都港区六本木6-10-1"
+        placeholder="例：東京都新宿区西新宿2-8-1"
+        onkeydown="if(event.key==='Enter')runAnalysis()">
+      <button class="addr-btn" onclick="runAnalysis()">🔍</button>
+    </div>
+    <div class="city-chips">
+      <span class="chip" onclick="setCity('tokyo')">🗼 東京</span>
+      <span class="chip" onclick="setCity('osaka')">🏯 大阪</span>
+      <span class="chip" onclick="setCity('nagoya')">🏙 名古屋</span>
+      <span class="chip" onclick="setCity('fukuoka')">🌸 福岡</span>
+    </div>
+  </div>
 
-    <!-- Step 2: Building Info -->
-    <div class="panel-section">
-      <div class="section-label">
-        <span class="section-num">2</span>
-        <span class="ja">建物情報</span>
-        <span class="en">Building Info</span>
-      </div>
-      <div class="field-group">
-        <div class="field-row">
-          <div class="field">
-            <label>
-              <span class="ja">屋上面積</span>
-              <span class="en">Roof Area</span>
-              <span class="field-unit">m²</span>
-            </label>
-            <input type="number" id="roofArea" value="600" min="50" max="5000">
-          </div>
-          <div class="field">
-            <label>
-              <span class="ja">建物階数</span>
-              <span class="en">Floors</span>
-              <span class="field-unit">階</span>
-            </label>
-            <input type="number" id="floors" value="12" min="1" max="60">
-          </div>
+  <!-- 2: Building -->
+  <div class="sec">
+    <div class="sec-label"><span class="sec-num">2</span>
+      <span class="ja">建物情報</span><span class="en">Building Info</span>
+    </div>
+    <div class="fields">
+      <div class="row2">
+        <div class="field">
+          <label><span class="ja">屋上面積</span><span class="en">Roof Area</span><span class="field-unit">m²</span></label>
+          <input type="number" id="roofArea" value="600" min="50" max="5000">
         </div>
         <div class="field">
-          <label>
-            <span class="ja">周辺環境</span>
-            <span class="en">Surroundings</span>
-          </label>
-          <select id="surroundings">
-            <option value="open" class="ja-block">開放的（遮蔽なし）</option>
-            <option value="open" class="en-block">Open (no shading)</option>
-            <option value="partial" selected class="ja-block">一部遮蔽あり</option>
-            <option value="partial" selected class="en-block">Partial shading</option>
-            <option value="dense" class="ja-block">高層ビル密集地</option>
-            <option value="dense" class="en-block">Dense high-rises</option>
-          </select>
+          <label><span class="ja">建物階数</span><span class="en">Floors</span><span class="field-unit">階</span></label>
+          <input type="number" id="floors" value="12" min="1" max="60">
         </div>
-        <div class="field">
-          <label>
-            <span class="ja">月間電気代</span>
-            <span class="en">Monthly Bill</span>
-            <span class="field-unit">万円</span>
-          </label>
-          <input type="number" id="monthlyBill" value="45" min="1" max="500">
-        </div>
+      </div>
+      <div class="field">
+        <label><span class="ja">周辺環境</span><span class="en">Surroundings</span></label>
+        <select id="surroundings">
+          <option value="open"><span class="ja">開放的（遮蔽なし）</span><span class="en">Open</span></option>
+          <option value="partial" selected><span class="ja">一部遮蔽あり</span><span class="en">Partial shading</span></option>
+          <option value="dense"><span class="ja">高層ビル密集地</span><span class="en">Dense high-rises</span></option>
+        </select>
+      </div>
+      <div class="field">
+        <label><span class="ja">月間電気代</span><span class="en">Monthly Bill</span><span class="field-unit">万円</span></label>
+        <input type="number" id="monthlyBill" value="45" min="1" max="500">
       </div>
     </div>
+  </div>
 
-    <!-- Step 3: Panel Config -->
-    <div class="panel-section">
-      <div class="section-label">
-        <span class="section-num">3</span>
-        <span class="ja">パネル設定</span>
-        <span class="en">Panel Config</span>
+  <!-- 3: Panels -->
+  <div class="sec">
+    <div class="sec-label"><span class="sec-num">3</span>
+      <span class="ja">パネル設定</span><span class="en">Panel Config</span>
+    </div>
+    <div class="fields">
+      <div class="slider-wrap">
+        <div class="slider-head">
+          <span class="slider-lbl"><span class="ja">パネル枚数</span><span class="en">Panel Count</span></span>
+          <span class="slider-val" id="panelCountVal">80枚</span>
+        </div>
+        <input type="range" id="panelCount" min="10" max="400" value="80"
+          oninput="document.getElementById('panelCountVal').textContent=this.value+'枚'">
       </div>
-      <div class="field-group">
-        <div class="slider-field">
-          <div class="slider-header">
-            <span class="slider-label">
-              <span class="ja">パネル枚数</span>
-              <span class="en">Panel Count</span>
-            </span>
-            <span class="slider-value" id="panelCountVal">80枚</span>
-          </div>
-          <input type="range" id="panelCount" min="10" max="400" value="80"
-            oninput="document.getElementById('panelCountVal').textContent=this.value+'枚'">
+      <div class="slider-wrap">
+        <div class="slider-head">
+          <span class="slider-lbl"><span class="ja">屋上使用率</span><span class="en">Coverage</span></span>
+          <span class="slider-val" id="coverageVal">70%</span>
         </div>
-        <div class="slider-field">
-          <div class="slider-header">
-            <span class="slider-label">
-              <span class="ja">屋上使用率</span>
-              <span class="en">Roof Coverage</span>
-            </span>
-            <span class="slider-value" id="coverageVal">70%</span>
-          </div>
-          <input type="range" id="coverage" min="30" max="95" value="70"
-            oninput="document.getElementById('coverageVal').textContent=this.value+'%'">
-        </div>
-        <div class="field">
-          <label>
-            <span class="ja">屋根の向き</span>
-            <span class="en">Roof Orientation</span>
-          </label>
-          <select id="orientation">
-            <option value="south">
-              <span class="ja">南向き（最適）</span>
-              <span class="en">South (optimal)</span>
-            </option>
-            <option value="southeast">
-              <span class="ja">南東向き</span>
-              <span class="en">Southeast</span>
-            </option>
-            <option value="southwest">
-              <span class="ja">南西向き</span>
-              <span class="en">Southwest</span>
-            </option>
-            <option value="east">
-              <span class="ja">東向き</span>
-              <span class="en">East</span>
-            </option>
-            <option value="west">
-              <span class="ja">西向き</span>
-              <span class="en">West</span>
-            </option>
-            <option value="flat">
-              <span class="ja">陸屋根（水平）</span>
-              <span class="en">Flat roof</span>
-            </option>
-          </select>
-        </div>
+        <input type="range" id="coverage" min="30" max="95" value="70"
+          oninput="document.getElementById('coverageVal').textContent=this.value+'%'">
+      </div>
+      <div class="field">
+        <label><span class="ja">屋根の向き</span><span class="en">Orientation</span></label>
+        <select id="orientation">
+          <option value="south"><span class="ja">南向き（最適）</span><span class="en">South (optimal)</span></option>
+          <option value="southeast"><span class="ja">南東向き</span><span class="en">Southeast</span></option>
+          <option value="southwest"><span class="ja">南西向き</span><span class="en">Southwest</span></option>
+          <option value="east"><span class="ja">東向き</span><span class="en">East</span></option>
+          <option value="west"><span class="ja">西向き</span><span class="en">West</span></option>
+          <option value="flat"><span class="ja">陸屋根（水平）</span><span class="en">Flat roof</span></option>
+        </select>
       </div>
     </div>
+  </div>
 
-    <!-- Step 4: Company -->
-    <div class="panel-section">
-      <div class="section-label">
-        <span class="section-num">4</span>
-        <span class="ja">施工会社を選択</span>
-        <span class="en">Select Company</span>
+  <!-- 4: Company -->
+  <div class="sec">
+    <div class="sec-label"><span class="sec-num">4</span>
+      <span class="ja">施工会社を選択</span><span class="en">Select Company</span>
+    </div>
+    <div class="co-list" id="coList"></div>
+  </div>
+
+  <!-- 5: Battery -->
+  <div class="sec">
+    <div class="sec-label"><span class="sec-num">5</span>
+      <span class="ja">蓄電池（オプション）</span><span class="en">Battery (Optional)</span>
+    </div>
+    <div class="batt-toggle" id="battToggle" onclick="toggleBatt()">
+      <div style="font-size:18px">🔋</div>
+      <div class="batt-lbl">
+        <div class="batt-lbl-title"><span class="ja">蓄電池を追加する</span><span class="en">Add Battery Storage</span></div>
+        <div class="batt-lbl-sub"><span class="ja">自家消費率 70% → 90%に向上</span><span class="en">Self-use 70% → 90%</span></div>
       </div>
-      <div class="company-list" id="companyList"></div>
+      <div class="sw"></div>
+    </div>
+    <div class="batt-config" id="battConfig">
+      <div class="batt-rec" id="battRec">🎯 <span class="ja">推奨容量を計算中...</span><span class="en">Calculating...</span></div>
+      <div class="slider-wrap">
+        <div class="slider-head">
+          <span class="slider-lbl"><span class="ja">蓄電池容量</span><span class="en">Battery Capacity</span></span>
+          <span class="slider-val" id="battCapVal">100kWh</span>
+        </div>
+        <input type="range" id="battCap" min="20" max="500" value="100" step="10"
+          oninput="document.getElementById('battCapVal').textContent=this.value+'kWh';if(curResults)renderBattSection(curResults)">
+      </div>
+      <div class="sec-label" style="margin-bottom:6px"><span class="ja">蓄電池メーカー</span><span class="en">Manufacturer</span></div>
+      <div class="batt-makers" id="battMakers"></div>
+    </div>
+  </div>
+
+  <!-- Run -->
+  <div class="sec">
+    <button class="run-btn" onclick="runAnalysis()">
+      <span style="font-size:15px">⚡</span>
+      <span><span class="ja">シミュレーション開始</span><span class="en">Run Simulation</span></span>
+    </button>
+  </div>
+
+</div><!-- /left -->
+
+<!-- RIGHT -->
+<div class="right">
+
+  <!-- Map -->
+  <div class="map-wrap">
+    <div id="gmap"></div>
+
+    <div class="map-badge" id="mapBadge">
+      <div><span class="ja">📍 東京都港区六本木</span><span class="en">📍 Roppongi, Tokyo</span></div>
+      <div class="coord" id="coordTxt">35.6604° N, 139.7292° E</div>
     </div>
 
-    <!-- Step 5: Battery Storage -->
-    <div class="panel-section">
-      <div class="section-label">
-        <span class="section-num">5</span>
-        <span class="ja">蓄電池（オプション）</span>
-        <span class="en">Battery Storage (Optional)</span>
-      </div>
-      <div class="battery-toggle" id="batteryToggle" onclick="toggleBattery()">
-        <div class="battery-toggle-icon">🔋</div>
-        <div class="battery-toggle-label">
-          <div class="battery-toggle-title">
-            <span class="ja">蓄電池を追加する</span>
-            <span class="en">Add Battery Storage</span>
-          </div>
-          <div class="battery-toggle-sub">
-            <span class="ja">自家消費率 70% → 90%に向上</span>
-            <span class="en">Self-consumption 70% → 90%</span>
-          </div>
-        </div>
-        <div class="battery-toggle-switch"></div>
-      </div>
-
-      <div class="battery-config" id="batteryConfig">
-        <div class="battery-rec-badge" id="batteryRecBadge">
-          🎯 <span class="ja">推奨容量を自動計算中...</span>
-          <span class="en">Calculating recommended capacity...</span>
-        </div>
-        <div class="slider-field">
-          <div class="slider-header">
-            <span class="slider-label">
-              <span class="ja">蓄電池容量</span>
-              <span class="en">Battery Capacity</span>
-            </span>
-            <span class="slider-value" id="batteryCapVal">100kWh</span>
-          </div>
-          <input type="range" id="batteryCap" min="20" max="500" value="100" step="10"
-            oninput="onBatteryCapChange(this.value)">
-        </div>
-        <div class="section-label" style="margin-bottom:8px">
-          <span class="ja">蓄電池メーカー</span>
-          <span class="en">Battery Manufacturer</span>
-        </div>
-        <div class="battery-maker-list" id="batteryMakerList"></div>
-      </div>
+    <div class="map-ctrls">
+      <button class="map-btn" onclick="gmap&&gmap.setZoom(gmap.getZoom()+1)">＋</button>
+      <button class="map-btn" onclick="gmap&&gmap.setZoom(gmap.getZoom()-1)">－</button>
+      <button class="map-btn" id="mapTypeBtn" onclick="toggleMapType()">🛰</button>
+      <button class="map-btn" onclick="resetView()">⌂</button>
     </div>
 
-    <!-- Analyze button -->
-    <div class="panel-section">
-      <button class="analyze-btn" onclick="runAnalysis()">
-        <span class="btn-icon">⚡</span>
-        <span class="btn-text">
-          <span class="ja">シミュレーション開始</span>
-          <span class="en">Run Simulation</span>
-        </span>
+    <div class="view-btns">
+      <button class="vbtn on" id="vbtnPanels" onclick="setView('panels')">
+        <span class="ja">☀ パネル配置</span><span class="en">☀ Panels</span>
+      </button>
+      <button class="vbtn" id="vbtnShadow" onclick="setView('shadow')">
+        <span class="ja">🌤 日照</span><span class="en">🌤 Sun</span>
+      </button>
+      <button class="vbtn" id="vbtnAnnual" onclick="setView('annual')">
+        <span class="ja">📊 年間日照量</span><span class="en">📊 Annual Flux</span>
       </button>
     </div>
 
+    <!-- Sun slider -->
+    <div class="sun-slider-panel" id="sunPanel">
+      <div class="sun-top">
+        <div class="sun-top-lbl"><span class="ja">時刻シミュレーション</span><span class="en">TIME SIMULATION</span></div>
+        <div class="sun-time" id="sunTimeTxt">12:00</div>
+      </div>
+      <div class="sun-row">
+        <span>🌅</span>
+        <input type="range" id="sunSlider" min="5" max="19" value="12" step="0.5" style="flex:1"
+          oninput="onSunSlider(this.value)">
+        <span>🌇</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:3px">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,.3)">5:00</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,.3)">12:00</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:8px;color:rgba(255,255,255,.3)">19:00</span>
+      </div>
+      <div class="sun-stats">
+        <div class="sun-stat">
+          <div class="sun-stat-lbl"><span class="ja">太陽高度</span><span class="en">ALTITUDE</span></div>
+          <div class="sun-stat-val" id="sunAlt">—°</div>
+        </div>
+        <div class="sun-stat">
+          <div class="sun-stat-lbl"><span class="ja">方位角</span><span class="en">AZIMUTH</span></div>
+          <div class="sun-stat-val" id="sunAz">—°</div>
+        </div>
+        <div class="sun-stat">
+          <div class="sun-stat-lbl"><span class="ja">発電効率</span><span class="en">EFFICIENCY</span></div>
+          <div class="sun-stat-val" id="sunEff">—%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div class="map-loading" id="mapLoading">
+      <div class="spinner"></div>
+      <div class="loading-msg" id="loadingMsg">ANALYZING...</div>
+    </div>
   </div>
 
-  <!-- RIGHT PANEL -->
-  <div class="right-panel">
+  <!-- Results -->
+  <div class="results-area">
+    <div class="results-empty" id="rEmpty">
+      <div class="empty-icon">🏢</div>
+      <div class="empty-txt"><span class="ja">建物情報を入力して分析を開始</span><span class="en">Enter address to start analysis</span></div>
+      <div class="empty-sub">
+        <span class="ja">住所を入力し「シミュレーション開始」を押してください</span>
+        <span class="en">Enter the address and click Run Simulation</span>
+      </div>
+    </div>
 
-    <!-- Map -->
-    <div class="map-container">
-      <!-- Real Google Maps -->
-      <div id="googleMap"></div>
-      <!-- Solar panel overlay canvas -->
-      <canvas id="solarOverlay"></canvas>
-
-      <div class="map-badge" id="mapBadge">
+    <div class="results-body" id="rBody">
+      <!-- Header -->
+      <div class="rh">
         <div>
-          <span class="ja">📍 東京都新宿区西新宿</span>
-          <span class="en">📍 Nishi-Shinjuku, Tokyo</span>
+          <div class="rh-addr" id="rAddr">—</div>
+          <div class="rh-meta" id="rMeta">—</div>
         </div>
-        <div class="coord" id="coordDisplay">35.6938° N, 139.7036° E</div>
-      </div>
-
-      <div class="map-controls">
-        <button class="map-ctrl-btn" title="Zoom in" onclick="gmap&&gmap.setZoom(gmap.getZoom()+1)">＋</button>
-        <button class="map-ctrl-btn" title="Zoom out" onclick="gmap&&gmap.setZoom(gmap.getZoom()-1)">－</button>
-        <button class="map-ctrl-btn" title="Satellite" onclick="toggleMapType()" id="mapTypeBtn">🛰</button>
-        <button class="map-ctrl-btn" title="Reset" onclick="resetMapView()">⌂</button>
-      </div>
-
-      <div class="sun-path-toggle">
-        <button class="toggle-btn active" id="btnPanels" onclick="setView('panels')">
-          <span class="ja">☀ パネル配置</span>
-          <span class="en">☀ Panel Layout</span>
-        </button>
-        <button class="toggle-btn" id="btnShadow" onclick="setView('shadow')">
-          <span class="ja">🌤 日照シミュレーション</span>
-          <span class="en">🌤 Sun Simulation</span>
-        </button>
-        <button class="toggle-btn" id="btnAnnual" onclick="setView('annual')">
-          <span class="ja">📊 年間日照量</span>
-          <span class="en">📊 Annual Flux</span>
-        </button>
-      </div>
-
-      <!-- 太陽角度スライダー（日照シミュレーション時のみ表示） -->
-      <div id="sunSliderPanel" style="display:none;position:absolute;bottom:56px;left:12px;right:12px;z-index:10;background:rgba(10,22,40,0.85);backdrop-filter:blur(8px);border-radius:10px;padding:12px 16px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:rgba(255,255,255,0.6);letter-spacing:1px">
-            <span class="ja">時刻シミュレーション</span>
-            <span class="en">TIME SIMULATION</span>
-          </div>
-          <div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:#fbbf24;font-weight:600" id="sunTimeLabel">12:00</div>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:14px">🌅</span>
-          <input type="range" id="sunTimeSlider" min="5" max="19" value="12" step="0.5"
-            style="flex:1"
-            oninput="onSunTimeChange(this.value)">
-          <span style="font-size:14px">🌇</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:4px">
-          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.3)">5:00</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.3)">12:00</span>
-          <span style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.3)">19:00</span>
-        </div>
-        <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px" id="sunStats">
-          <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:6px">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4)">
-              <span class="ja">太陽高度</span><span class="en">ALTITUDE</span>
-            </div>
-            <div style="font-size:14px;color:#fbbf24;font-weight:600" id="sunAltDisplay">—°</div>
-          </div>
-          <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:6px">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4)">
-              <span class="ja">方位角</span><span class="en">AZIMUTH</span>
-            </div>
-            <div style="font-size:14px;color:#fbbf24;font-weight:600" id="sunAzDisplay">—°</div>
-          </div>
-          <div style="text-align:center;padding:6px;background:rgba(255,255,255,0.05);border-radius:6px">
-            <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:rgba(255,255,255,0.4)">
-              <span class="ja">発電効率</span><span class="en">EFFICIENCY</span>
-            </div>
-            <div style="font-size:14px;color:#fbbf24;font-weight:600" id="sunEffDisplay">—%</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-steps">
-          <div class="loading-step" id="step1">
-            <span class="ja">📍 住所を取得中...</span>
-            <span class="en">📍 Geocoding address...</span>
-          </div>
-          <div class="loading-step" id="step2">
-            <span class="ja">🛰 屋根データを解析中...</span>
-            <span class="en">🛰 Analyzing rooftop data...</span>
-          </div>
-          <div class="loading-step" id="step3">
-            <span class="ja">☀ 日照量を計算中...</span>
-            <span class="en">☀ Calculating solar irradiance...</span>
-          </div>
-          <div class="loading-step" id="step4">
-            <span class="ja">💴 投資効果を試算中...</span>
-            <span class="en">💴 Computing financial ROI...</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Results -->
-    <div class="results-section">
-
-      <div class="results-empty" id="resultsEmpty">
-        <div class="empty-icon">🏢</div>
-        <div class="empty-text">
-          <span class="ja">建物情報を入力して分析を開始</span>
-          <span class="en">Enter building info to start analysis</span>
-        </div>
-        <div class="empty-sub">
-          <span class="ja">住所・面積・電気代を入力し「シミュレーション開始」を押してください。Google Solar APIのデータに基づき、発電量とROIを自動計算します。</span>
-          <span class="en">Enter the address, roof area, and monthly bill, then click "Run Simulation". We'll calculate solar production and ROI using Google Solar API data.</span>
-        </div>
-      </div>
-
-      <div class="results-content" id="resultsContent">
-
-        <!-- Header -->
-        <div class="results-header">
+        <div class="score-pill">
           <div>
-            <div class="results-address-line">
-              <span style="font-size:16px">📍</span>
-              <div class="results-address" id="rAddress">—</div>
-            </div>
-            <div class="results-meta" id="rMeta">—</div>
-          </div>
-          <div class="score-pill">
-            <div>
-              <div class="score-label-text">
-                <span class="ja">適合スコア</span>
-                <span class="en">Suitability Score</span>
-              </div>
-              <div style="display:flex;align-items:baseline;gap:3px">
-                <div class="score-num" id="rScore">—</div>
-                <div class="score-max">/ 100</div>
-              </div>
+            <div class="score-lbl"><span class="ja">適合スコア</span><span class="en">Score</span></div>
+            <div style="display:flex;align-items:baseline;gap:2px">
+              <div class="score-num" id="rScore">—</div>
+              <div class="score-max">/ 100</div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- KPIs -->
-        <div class="kpi-row">
-          <div class="kpi-card blue">
-            <div class="kpi-label">
-              <span class="ja">年間発電量</span>
-              <span class="en">Annual Output</span>
+      <!-- KPIs -->
+      <div class="kpis">
+        <div class="kpi blue"><div class="kpi-lbl"><span class="ja">年間発電量</span><span class="en">Annual Output</span></div><div class="kpi-val blue" id="k1">—</div><div class="kpi-unit">kWh/<span class="ja">年</span><span class="en">yr</span></div></div>
+        <div class="kpi orange"><div class="kpi-lbl"><span class="ja">年間節約電気代</span><span class="en">Annual Savings</span></div><div class="kpi-val orange" id="k2">—</div><div class="kpi-unit"><span class="ja">万円/年</span><span class="en">¥10K/yr</span></div></div>
+        <div class="kpi green"><div class="kpi-lbl"><span class="ja">投資回収期間</span><span class="en">Payback</span></div><div class="kpi-val green" id="k3">—</div><div class="kpi-unit"><span class="ja">年</span><span class="en">years</span></div></div>
+        <div class="kpi gray"><div class="kpi-lbl"><span class="ja">25年累計利益</span><span class="en">25yr Profit</span></div><div class="kpi-val" id="k4">—</div><div class="kpi-unit"><span class="ja">万円</span><span class="en">¥10K</span></div></div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="cards">
+        <div class="card">
+          <div class="card-ttl"><span class="card-dot"></span><span class="ja">月別発電量 (kWh)</span><span class="en">Monthly Output (kWh)</span></div>
+          <div class="bar-chart" id="barChart"></div>
+        </div>
+        <div class="card">
+          <div class="card-ttl"><span class="card-dot" style="background:var(--green)"></span><span class="ja">25年累積収益 (万円)</span><span class="en">25yr Profit (¥10K)</span></div>
+          <div class="roi-wrap"><canvas id="roiCanvas"></canvas></div>
+        </div>
+        <div class="card">
+          <div class="card-ttl"><span class="card-dot" style="background:var(--ink3)"></span><span class="ja">計算ステップ（透明性）</span><span class="en">Calculation Steps</span></div>
+          <div class="calc-steps" id="calcSteps"></div>
+        </div>
+        <div class="card">
+          <div class="card-ttl"><span class="card-dot" style="background:var(--gray3)"></span><span class="ja">影響要因分析</span><span class="en">Factor Analysis</span></div>
+          <div class="factor-list" id="factorList"></div>
+        </div>
+      </div>
+
+      <!-- Subsidy -->
+      <div class="card" style="margin-bottom:14px" id="subsidyCard"></div>
+
+      <!-- Panel viz -->
+      <div class="card" style="margin-bottom:14px">
+        <div class="card-ttl"><span class="card-dot" style="background:var(--sun)"></span><span class="ja">パネル配置イメージ</span><span class="en">Panel Layout</span></div>
+        <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start">
+          <div id="panelGrid" class="panel-viz"></div>
+          <div style="display:flex;flex-direction:column;gap:8px;min-width:140px">
+            <div style="padding:9px;background:var(--gray);border-radius:7px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3)"><span class="ja">設置枚数</span><span class="en">Panels</span></div>
+              <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink)" id="panelCountDisp">—</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3)"><span class="ja">枚</span><span class="en">panels</span></div>
             </div>
-            <div class="kpi-value blue" id="kpi1">—</div>
-            <div class="kpi-unit">kWh / <span class="ja">年</span><span class="en">yr</span></div>
-          </div>
-          <div class="kpi-card orange">
-            <div class="kpi-label">
-              <span class="ja">年間節約電気代</span>
-              <span class="en">Annual Savings</span>
-            </div>
-            <div class="kpi-value orange" id="kpi2">—</div>
-            <div class="kpi-unit">
-              <span class="ja">万円 / 年</span>
-              <span class="en">¥10K / yr</span>
-            </div>
-          </div>
-          <div class="kpi-card green">
-            <div class="kpi-label">
-              <span class="ja">投資回収期間</span>
-              <span class="en">Payback Period</span>
-            </div>
-            <div class="kpi-value green" id="kpi3">—</div>
-            <div class="kpi-unit"><span class="ja">年</span><span class="en">years</span></div>
-          </div>
-          <div class="kpi-card gray">
-            <div class="kpi-label">
-              <span class="ja">25年累計利益</span>
-              <span class="en">25yr Net Profit</span>
-            </div>
-            <div class="kpi-value" id="kpi4">—</div>
-            <div class="kpi-unit">
-              <span class="ja">万円</span>
-              <span class="en">¥10K</span>
+            <div style="padding:9px;background:var(--sun3);border-radius:7px">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sun)">SYSTEM SIZE</div>
+              <div style="font-family:'DM Serif Display',serif;font-size:20px;color:var(--ink)" id="sysKWDisp">—</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3)">kW</div>
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Charts row -->
-        <div class="results-grid">
-          <!-- Monthly chart -->
-          <div class="result-card">
-            <div class="card-title">
-              <span class="card-title-dot"></span>
-              <span class="ja">月別発電量予測 (kWh)</span>
-              <span class="en">Monthly Output Forecast (kWh)</span>
-            </div>
-            <div class="bar-chart" id="barChart"></div>
-          </div>
-
-          <!-- ROI chart -->
-          <div class="result-card">
-            <div class="card-title">
-              <span class="card-title-dot" style="background:var(--green)"></span>
-              <span class="ja">25年間累積収益推移 (万円)</span>
-              <span class="en">25yr Cumulative Profit (¥10K)</span>
-            </div>
-            <div class="roi-chart">
-              <canvas id="roiCanvas"></canvas>
-            </div>
-          </div>
-
-          <!-- Calculation steps -->
-          <div class="result-card">
-            <div class="card-title">
-              <span class="card-title-dot" style="background:var(--ink3)"></span>
-              <span class="ja">計算ステップ（透明性）</span>
-              <span class="en">Calculation Steps (Transparent)</span>
-            </div>
-            <div class="calc-steps" id="calcSteps"></div>
-          </div>
-
-          <!-- Factor analysis -->
-          <div class="result-card">
-            <div class="card-title">
-              <span class="card-title-dot" style="background:var(--gray3)"></span>
-              <span class="ja">影響要因分析</span>
-              <span class="en">Factor Analysis</span>
-            </div>
-            <div class="factor-list" id="factorList"></div>
-          </div>
+      <!-- Battery section -->
+      <div id="battSection" style="display:none;margin-bottom:14px">
+        <div class="card">
+          <div class="card-ttl"><span class="card-dot" style="background:var(--green)"></span>🔋 <span class="ja">蓄電池シミュレーション</span><span class="en">Battery Analysis</span></div>
+          <div class="batt-compare" id="battCompare"></div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);letter-spacing:1px;margin-bottom:6px"><span class="ja">充放電フロー</span><span class="en">CHARGE / DISCHARGE FLOW</span></div>
+          <div class="flow" id="battFlow"></div>
+          <div id="battCostBreak" style="margin-top:12px"></div>
         </div>
+      </div>
 
-        <!-- Panel visualization -->
-        <div class="result-card" style="margin-bottom:16px">
-          <div class="card-title">
-            <span class="card-title-dot" style="background:var(--sun)"></span>
-            <span class="ja">パネル配置イメージ（屋上俯瞰）</span>
-            <span class="en">Panel Layout Visualization (Roof Top View)</span>
-          </div>
-          <div style="display:grid;grid-template-columns:1fr auto;gap:20px;align-items:start">
-            <div id="panelGrid" class="solar-panel-grid"></div>
-            <div style="display:flex;flex-direction:column;gap:8px;min-width:160px">
-              <div style="display:flex;flex-direction:column;gap:6px">
-                <div style="display:flex;align-items:center;gap:8px">
-                  <div style="width:14px;height:14px;background:#1e3a5f;border-radius:2px;border:1px solid rgba(255,255,255,0.1)"></div>
-                  <span style="font-size:11px;color:var(--gray3)">
-                    <span class="ja">太陽光パネル</span>
-                    <span class="en">Solar Panel</span>
-                  </span>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <div style="width:14px;height:14px;background:#374151;border-radius:2px;border:1px solid rgba(255,255,255,0.06)"></div>
-                  <span style="font-size:11px;color:var(--gray3)">
-                    <span class="ja">未使用スペース</span>
-                    <span class="en">Unused Space</span>
-                  </span>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <div style="width:14px;height:14px;background:rgba(245,158,11,0.4);border-radius:2px;"></div>
-                  <span style="font-size:11px;color:var(--gray3)">
-                    <span class="ja">日当たり良好</span>
-                    <span class="en">High irradiance</span>
-                  </span>
-                </div>
-              </div>
-              <div style="margin-top:8px;padding:10px;background:var(--gray);border-radius:8px">
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray3);margin-bottom:4px">
-                  <span class="ja">設置枚数</span><span class="en">Panel Count</span>
-                </div>
-                <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink)" id="panelCountDisplay">—</div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray3)">
-                  <span class="ja">枚</span><span class="en">panels</span>
-                </div>
-              </div>
-              <div style="padding:10px;background:var(--sun3);border-radius:8px">
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--sun);margin-bottom:4px">
-                  <span class="ja">システム容量</span><span class="en">System Size</span>
-                </div>
-                <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink)" id="systemKWDisplay">—</div>
-                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray3)">kW</div>
-              </div>
-            </div>
-          </div>
+      <!-- CTA -->
+      <div class="cta">
+        <div>
+          <div class="cta-ttl"><span class="ja">🎯 次のステップへ</span><span class="en">🎯 Ready for Next Step?</span></div>
+          <div class="cta-desc"><span class="ja">無料現地調査・詳細見積もりを複数の施工会社から比較できます</span><span class="en">Free on-site assessment and quotes from multiple certified installers</span></div>
         </div>
-
-        <!-- Battery Storage Section (shown when battery is enabled) -->
-        <div id="batterySection" style="display:none;margin-bottom:16px">
-          <div class="result-card">
-            <div class="card-title">
-              <span class="card-title-dot" style="background:var(--green)"></span>
-              <span class="ja">🔋 蓄電池シミュレーション</span>
-              <span class="en">🔋 Battery Storage Analysis</span>
-            </div>
-
-            <!-- Solar only vs Solar+Battery comparison -->
-            <div class="compare-header" id="batteryCompare"></div>
-
-            <!-- Charge/discharge flow diagram -->
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray3);letter-spacing:1px;margin-bottom:8px">
-              <span class="ja">充放電フロー（平均的な1日）</span>
-              <span class="en">CHARGE / DISCHARGE FLOW (TYPICAL DAY)</span>
-            </div>
-            <div class="charge-flow" id="chargeFlow"></div>
-
-            <!-- Hourly generation + consumption chart -->
-            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--gray3);letter-spacing:1px;margin-bottom:6px">
-              <span class="ja">時間帯別 発電・消費・充放電（夏季代表日）</span>
-              <span class="en">HOURLY GENERATION / CONSUMPTION / CHARGE (SUMMER)</span>
-            </div>
-            <div style="display:flex;gap:12px;margin-bottom:6px;flex-wrap:wrap">
-              <div style="display:flex;align-items:center;gap:5px">
-                <div style="width:10px;height:10px;background:#f59e0b;border-radius:2px"></div>
-                <span style="font-size:10px;color:var(--gray3)"><span class="ja">発電</span><span class="en">Generation</span></span>
-              </div>
-              <div style="display:flex;align-items:center;gap:5px">
-                <div style="width:10px;height:10px;background:#1e3a5f;border-radius:2px"></div>
-                <span style="font-size:10px;color:var(--gray3)"><span class="ja">消費</span><span class="en">Consumption</span></span>
-              </div>
-              <div style="display:flex;align-items:center;gap:5px">
-                <div style="width:10px;height:10px;background:#059669;border-radius:2px"></div>
-                <span style="font-size:10px;color:var(--gray3)"><span class="ja">蓄電池充電</span><span class="en">Battery Charge</span></span>
-              </div>
-              <div style="display:flex;align-items:center;gap:5px">
-                <div style="width:10px;height:10px;background:#7c3aed;border-radius:2px"></div>
-                <span style="font-size:10px;color:var(--gray3)"><span class="ja">蓄電池放電</span><span class="en">Battery Discharge</span></span>
-              </div>
-            </div>
-            <div id="hourlyChart" style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;align-items:end;height:90px;padding-bottom:18px;position:relative">
-              <div style="position:absolute;bottom:18px;left:0;right:0;height:1px;background:var(--gray)"></div>
-            </div>
-            <div id="hourlyXAxis" style="display:grid;grid-template-columns:repeat(24,1fr);gap:2px;margin-top:2px"></div>
-
-            <!-- Battery cost breakdown -->
-            <div id="batteryCostBreakdown" style="margin-top:16px"></div>
-          </div>
+        <div class="cta-btns">
+          <button class="btn-pri" onclick="showModal()"><span class="ja">📩 無料相談を申し込む</span><span class="en">📩 Request Free Consult</span></button>
+          <button class="btn-sec"><span class="ja">📄 レポートをダウンロード</span><span class="en">📄 Download Report</span></button>
         </div>
-
-        <!-- CTA -->
-        <div class="cta-card">
-          <div>
-            <div class="cta-title">
-              <span class="ja">🎯 次のステップへ</span>
-              <span class="en">🎯 Ready for Next Step?</span>
-            </div>
-            <div class="cta-desc">
-              <span class="ja">このシミュレーション結果をもとに、無料の現地調査と詳細見積もりをご提供します。複数の施工会社から最適なプランを比較できます。</span>
-              <span class="en">Based on this simulation, we'll provide a free on-site assessment and detailed quotes. Compare proposals from multiple certified installers.</span>
-            </div>
-          </div>
-          <div class="cta-btns">
-            <button class="btn-cta-primary" onclick="showModal()">
-              <span class="ja">📩 無料相談を申し込む</span>
-              <span class="en">📩 Request Free Consult</span>
-            </button>
-            <button class="btn-cta-secondary" onclick="alert('レポートのダウンロード機能は近日公開予定です。')">
-              <span class="ja">📄 レポートをダウンロード</span>
-              <span class="en">📄 Download Report</span>
-            </button>
-          </div>
-        </div>
-
       </div>
     </div>
   </div>
-</div>
 
-<!-- MODAL -->
-<div class="modal-overlay" id="modalOverlay" onclick="handleModalClick(event)">
+</div><!-- /right -->
+</div><!-- /app -->
+
+<!-- Modal -->
+<div class="modal-bg" id="modalBg" onclick="if(event.target===this)hideModal()">
   <div class="modal">
-    <div id="modalForm">
-      <div class="modal-title">
-        <span class="ja">無料相談を申し込む</span>
-        <span class="en">Request Free Consultation</span>
-      </div>
-      <div class="modal-desc">
-        <span class="ja">担当コンサルタントが24時間以内にご連絡いたします。現地調査・詳細見積もりは完全無料です。</span>
-        <span class="en">Our consultant will contact you within 24 hours. On-site assessment and detailed quote are completely free.</span>
-      </div>
-      <div class="modal-field">
-        <label>
-          <span class="ja">会社名・建物名</span>
-          <span class="en">Company / Building Name</span>
-        </label>
-        <input type="text" id="m_company" placeholder="○○マンション管理組合">
-      </div>
-      <div class="modal-field">
-        <label>
-          <span class="ja">担当者名</span>
-          <span class="en">Contact Name</span>
-        </label>
-        <input type="text" id="m_name" placeholder="山田 太郎">
-      </div>
-      <div class="modal-field">
-        <label>
-          <span class="ja">電話番号</span>
-          <span class="en">Phone Number</span>
-        </label>
-        <input type="text" id="m_phone" placeholder="090-1234-5678">
-      </div>
-      <div class="modal-field">
-        <label>
-          <span class="ja">メールアドレス</span>
-          <span class="en">Email Address</span>
-        </label>
-        <input type="text" id="m_email" placeholder="contact@building.co.jp">
-      </div>
-      <div class="modal-actions">
-        <button class="modal-submit" onclick="submitLead()">
-          <span class="ja">送信する</span>
-          <span class="en">Submit</span>
-        </button>
-        <button class="modal-cancel" onclick="hideModal()">
-          <span class="ja">キャンセル</span>
-          <span class="en">Cancel</span>
-        </button>
+    <div id="mForm">
+      <div class="modal-ttl"><span class="ja">無料相談を申し込む</span><span class="en">Request Free Consultation</span></div>
+      <div class="modal-desc"><span class="ja">担当者が24時間以内にご連絡いたします</span><span class="en">Our consultant will contact you within 24 hours</span></div>
+      <div class="mf"><label><span class="ja">会社名・建物名</span><span class="en">Company / Building</span></label><input id="mCompany" placeholder="○○マンション管理組合"></div>
+      <div class="mf"><label><span class="ja">担当者名</span><span class="en">Contact Name</span></label><input id="mName" placeholder="山田 太郎"></div>
+      <div class="mf"><label><span class="ja">電話番号</span><span class="en">Phone</span></label><input id="mPhone" placeholder="090-1234-5678"></div>
+      <div class="mf"><label><span class="ja">メールアドレス</span><span class="en">Email</span></label><input id="mEmail" placeholder="contact@building.co.jp"></div>
+      <div class="m-actions">
+        <button class="m-submit" onclick="submitLead()"><span class="ja">送信する</span><span class="en">Submit</span></button>
+        <button class="m-cancel" onclick="hideModal()"><span class="ja">キャンセル</span><span class="en">Cancel</span></button>
       </div>
     </div>
-    <div class="modal-success" id="modalSuccess">
-      <div class="success-icon">✅</div>
-      <div class="success-title">
-        <span class="ja">送信完了！</span>
-        <span class="en">Submitted!</span>
-      </div>
-      <div class="success-desc">
-        <span class="ja">ありがとうございます。担当者が24時間以内にご連絡いたします。</span>
-        <span class="en">Thank you! Our consultant will contact you within 24 hours.</span>
-      </div>
-      <button class="modal-submit" style="margin-top:20px" onclick="hideModal()">
-        <span class="ja">閉じる</span>
-        <span class="en">Close</span>
-      </button>
+    <div class="m-success" id="mSuccess">
+      <div class="m-ok-icon">✅</div>
+      <div class="m-ok-ttl"><span class="ja">送信完了！</span><span class="en">Submitted!</span></div>
+      <div class="m-ok-desc"><span class="ja">24時間以内にご連絡いたします</span><span class="en">We'll contact you within 24 hours</span></div>
+      <button class="m-submit" style="margin-top:16px;width:100%" onclick="hideModal()"><span class="ja">閉じる</span><span class="en">Close</span></button>
     </div>
   </div>
 </div>
 
 <script>
-// ===== DATA =====
+// ============================================================
+// DATA
+// ============================================================
 const COMPANIES = [
-  { id: 0, name: 'テックソーラー株式会社', nameEn: 'TechSolar Corp.', efficiency: 22.5, warranty: 25, pricePerKW: 280000, color: '#1e3a5f' },
-  { id: 1, name: '日本再生エネルギー', nameEn: 'Japan Renewable Energy', efficiency: 20.8, warranty: 20, pricePerKW: 230000, color: '#059669' },
-  { id: 2, name: 'サンパワーJapan', nameEn: 'SunPower Japan', efficiency: 24.1, warranty: 30, pricePerKW: 330000, color: '#f59e0b' },
+  {id:0,name:'テックソーラー株式会社',nameEn:'TechSolar Corp.',efficiency:22.5,warranty:25,pricePerKW:280000,color:'#1e3a5f'},
+  {id:1,name:'日本再生エネルギー',nameEn:'Japan Renewable Energy',efficiency:20.8,warranty:20,pricePerKW:230000,color:'#059669'},
+  {id:2,name:'サンパワーJapan',nameEn:'SunPower Japan',efficiency:24.1,warranty:30,pricePerKW:330000,color:'#f59e0b'},
 ];
-
-const CITY_DATA = {
-  tokyo:   { address: '東京都新宿区西新宿2-8-1',   addressEn: 'Nishi-Shinjuku, Tokyo',   lat: 35.6938, lng: 139.7036, sunHours: 4.1, label: '東京都新宿区西新宿' },
-  osaka:   { address: '大阪府大阪市北区大淀中1-1',  addressEn: 'Kita-ku, Osaka',           lat: 34.7055, lng: 135.4983, sunHours: 4.4, label: '大阪府大阪市北区' },
-  nagoya:  { address: '愛知県名古屋市中村区名駅1-1', addressEn: 'Nakamura-ku, Nagoya',      lat: 35.1709, lng: 136.8815, sunHours: 4.5, label: '愛知県名古屋市中村区' },
-  fukuoka: { address: '福岡県福岡市博多区博多駅前1-1', addressEn: 'Hakata-ku, Fukuoka',    lat: 33.5904, lng: 130.4017, sunHours: 4.6, label: '福岡県福岡市博多区' },
+const BATTERY_MAKERS = [
+  {id:0,name:'テスラ Powerpack',nameEn:'Tesla Powerpack',color:'#dc2626',pricePerKWh:130000,cycleLife:6000,warranty:15,eff:0.92},
+  {id:1,name:'パナソニック創蓄連携',nameEn:'Panasonic ENERES',color:'#2563eb',pricePerKWh:115000,cycleLife:6000,warranty:15,eff:0.93},
+  {id:2,name:'PowerX Cube',nameEn:'PowerX Cube',color:'#059669',pricePerKWh:95000,cycleLife:8000,warranty:20,eff:0.94},
+];
+const CITIES = {
+  tokyo:  {addr:'東京都新宿区西新宿2-8-1',addrEn:'Nishi-Shinjuku, Tokyo',lat:35.6938,lng:139.7036,label:'東京都新宿区'},
+  osaka:  {addr:'大阪府大阪市北区大淀中1-1',addrEn:'Kita-ku, Osaka',lat:34.7055,lng:135.4983,label:'大阪府大阪市北区'},
+  nagoya: {addr:'愛知県名古屋市中村区名駅1-1',addrEn:'Nakamura-ku, Nagoya',lat:35.1709,lng:136.8815,label:'愛知県名古屋市'},
+  fukuoka:{addr:'福岡県福岡市博多区博多駅前1-1',addrEn:'Hakata-ku, Fukuoka',lat:33.5904,lng:130.4017,label:'福岡県福岡市'},
 };
+const NEDO = {
+  tokyo:  {lat:35.6938,lng:139.7036,ghi:[[0,0,0,0,0,0,0,.07,.28,.51,.68,.76,.74,.62,.44,.21,.03,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.05,.30,.58,.78,.89,.88,.76,.56,.29,.07,0,0,0,0,0,0,0],[0,0,0,0,0,0,.02,.17,.45,.73,.94,1.05,1.04,.91,.70,.43,.16,.01,0,0,0,0,0,0],[0,0,0,0,0,0,.06,.27,.56,.83,1.02,1.12,1.10,.97,.76,.50,.24,.05,0,0,0,0,0,0],[0,0,0,0,0,0,.10,.34,.63,.89,1.07,1.17,1.15,1.02,.82,.57,.31,.09,.01,0,0,0,0,0],[0,0,0,0,0,0,.08,.27,.51,.71,.84,.90,.88,.78,.61,.41,.20,.05,0,0,0,0,0,0],[0,0,0,0,0,0,.09,.31,.58,.80,.95,1.02,1.00,.88,.69,.46,.21,.04,0,0,0,0,0,0],[0,0,0,0,0,0,.07,.29,.58,.83,1.01,1.10,1.09,.97,.77,.52,.25,.05,0,0,0,0,0,0],[0,0,0,0,0,0,.03,.20,.47,.72,.90,.99,.97,.85,.65,.40,.15,.01,0,0,0,0,0,0],[0,0,0,0,0,0,0,.10,.37,.63,.82,.92,.91,.79,.59,.33,.09,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.04,.25,.51,.69,.79,.78,.66,.46,.21,.03,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.02,.20,.45,.63,.72,.70,.58,.38,.15,.01,0,0,0,0,0,0,0]],sunny:[.52,.48,.44,.46,.42,.28,.32,.38,.36,.42,.50,.54],temp:[5.4,6.1,9.4,14.3,18.8,22.1,25.8,27.4,23.9,18.4,13.1,8.3]},
+  osaka:  {lat:34.6937,lng:135.5023,ghi:[[0,0,0,0,0,0,0,.09,.32,.57,.74,.82,.80,.68,.49,.25,.05,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.07,.34,.63,.84,.95,.94,.81,.60,.33,.09,0,0,0,0,0,0,0],[0,0,0,0,0,0,.03,.20,.49,.78,1.00,1.11,1.10,.96,.74,.47,.19,.02,0,0,0,0,0,0],[0,0,0,0,0,0,.08,.30,.60,.88,1.07,1.18,1.16,1.02,.80,.53,.26,.06,0,0,0,0,0,0],[0,0,0,0,0,0,.12,.37,.67,.94,1.13,1.22,1.20,1.06,.85,.59,.33,.10,.01,0,0,0,0,0],[0,0,0,0,0,0,.09,.29,.54,.75,.88,.94,.92,.81,.64,.43,.21,.05,0,0,0,0,0,0],[0,0,0,0,0,0,.10,.33,.61,.84,.99,1.06,1.04,.92,.72,.48,.23,.05,0,0,0,0,0,0],[0,0,0,0,0,0,.08,.31,.61,.87,1.05,1.14,1.12,1.00,.80,.54,.27,.06,0,0,0,0,0,0],[0,0,0,0,0,0,.04,.22,.51,.77,.96,1.05,1.03,.90,.69,.43,.17,.02,0,0,0,0,0,0],[0,0,0,0,0,0,0,.12,.40,.67,.87,.97,.96,.83,.63,.37,.11,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.05,.27,.54,.73,.83,.82,.70,.50,.24,.04,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.03,.22,.48,.66,.76,.74,.62,.42,.18,.02,0,0,0,0,0,0,0]],sunny:[.48,.45,.42,.44,.40,.26,.34,.40,.34,.44,.49,.52],temp:[6.0,7.0,10.4,15.5,20.2,24.2,28.0,29.3,25.5,19.4,13.7,8.5]},
+  nagoya: {lat:35.1709,lng:136.8815,ghi:[[0,0,0,0,0,0,0,.10,.35,.61,.79,.87,.85,.72,.52,.27,.06,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.08,.37,.67,.89,1.00,.99,.85,.64,.36,.10,0,0,0,0,0,0,0],[0,0,0,0,0,0,.04,.22,.52,.82,1.04,1.15,1.14,1.00,.77,.50,.21,.03,0,0,0,0,0,0],[0,0,0,0,0,0,.09,.32,.63,.91,1.11,1.21,1.19,1.05,.83,.56,.28,.07,0,0,0,0,0,0],[0,0,0,0,0,0,.13,.39,.70,.97,1.16,1.26,1.24,1.10,.88,.62,.35,.11,.01,0,0,0,0,0],[0,0,0,0,0,0,.09,.30,.55,.76,.89,.95,.93,.82,.65,.44,.21,.05,0,0,0,0,0,0],[0,0,0,0,0,0,.10,.34,.62,.85,1.00,1.07,1.05,.93,.73,.49,.23,.05,0,0,0,0,0,0],[0,0,0,0,0,0,.08,.32,.62,.88,1.07,1.16,1.14,1.02,.82,.56,.28,.06,0,0,0,0,0,0],[0,0,0,0,0,0,.04,.23,.52,.79,.98,1.07,1.05,.92,.71,.45,.18,.02,0,0,0,0,0,0],[0,0,0,0,0,0,0,.13,.42,.70,.90,1.00,.99,.86,.65,.39,.12,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.06,.29,.57,.77,.87,.86,.73,.53,.27,.05,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.04,.24,.50,.69,.79,.77,.65,.44,.20,.03,0,0,0,0,0,0,0]],sunny:[.54,.51,.47,.48,.44,.29,.31,.39,.37,.45,.52,.56],temp:[4.7,5.5,8.9,14.3,19.2,23.3,27.4,29.0,25.3,19.1,13.1,7.6]},
+  fukuoka:{lat:33.5904,lng:130.4017,ghi:[[0,0,0,0,0,0,0,.11,.37,.63,.81,.89,.87,.74,.54,.29,.07,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.09,.39,.69,.91,1.02,1.01,.87,.66,.38,.11,0,0,0,0,0,0,0],[0,0,0,0,0,0,.05,.24,.54,.84,1.06,1.17,1.16,1.02,.79,.52,.23,.04,0,0,0,0,0,0],[0,0,0,0,0,0,.10,.33,.65,.93,1.13,1.23,1.21,1.07,.85,.58,.30,.08,0,0,0,0,0,0],[0,0,0,0,0,0,.13,.40,.71,.98,1.17,1.27,1.25,1.11,.89,.63,.36,.12,.01,0,0,0,0,0],[0,0,0,0,0,0,.10,.31,.57,.78,.91,.97,.95,.84,.67,.46,.22,.06,0,0,0,0,0,0],[0,0,0,0,0,0,.11,.35,.63,.86,1.01,1.08,1.06,.94,.74,.50,.24,.06,0,0,0,0,0,0],[0,0,0,0,0,0,.09,.33,.63,.89,1.08,1.17,1.15,1.03,.83,.57,.29,.07,0,0,0,0,0,0],[0,0,0,0,0,0,.05,.24,.53,.80,.99,1.08,1.06,.93,.72,.46,.19,.03,0,0,0,0,0,0],[0,0,0,0,0,0,.01,.14,.44,.72,.92,1.02,1.01,.88,.67,.41,.14,.01,0,0,0,0,0,0],[0,0,0,0,0,0,0,.07,.31,.59,.79,.89,.88,.75,.55,.29,.06,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,.05,.26,.52,.71,.81,.79,.67,.46,.22,.03,0,0,0,0,0,0,0]],sunny:[.44,.42,.40,.42,.40,.24,.36,.42,.32,.42,.46,.48],temp:[7.0,8.2,11.7,16.7,21.2,25.2,29.1,30.2,26.2,20.5,14.7,9.3]},
+};
+const SUBSIDY_DB = {
+  national:[
+    {name:'需要家等省エネ・再エネ設備導入支援',nameEn:'National Self-Consumption Subsidy',rate:.20,maxPerKW:30000,maxTotal:10000000},
+    {name:'ZEH-M支援事業（集合住宅）',nameEn:'ZEH-M Collective Housing',rate:.25,maxPerKW:40000,maxTotal:15000000},
+  ],
+  pref:{
+    tokyo:[{name:'集合住宅向け太陽光発電普及促進',nameEn:'Tokyo Metro Solar',flat:1000000,perKW:50000,maxTotal:5000000},{name:'地産地消型再エネ普及拡大',nameEn:'Tokyo Local RE',rate:.10,maxTotal:3000000}],
+    osaka:[{name:'大阪府再エネ導入促進補助金',nameEn:'Osaka RE Subsidy',rate:.15,maxTotal:3000000}],
+    aichi:[{name:'愛知県太陽光設備導入費補助金',nameEn:'Aichi Solar Subsidy',rate:.10,maxPerKW:20000,maxTotal:2000000}],
+    fukuoka:[{name:'福岡県太陽光発電設備導入支援',nameEn:'Fukuoka Solar Subsidy',rate:.10,maxTotal:2000000}],
+  },
+};
+const ORIENT_F = {south:1.00,southeast:.96,southwest:.96,east:.87,west:.85,flat:.92};
+const SCENARIO_F = {avg:1.00,best:1.08,worst:.87};
+const MO_JA = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+const MO_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const MONTH_LABELS_JA = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
-const MONTH_LABELS_EN = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-// Japan solar profile (relative monthly)
-const SOLAR_PROFILE = [0.72, 0.78, 0.90, 0.97, 1.00, 0.88, 0.85, 0.95, 0.88, 0.85, 0.74, 0.68];
-
-let currentLang = 'ja';
-let selectedCompany = 0;
-let currentCity = null;
-let currentResults = null;
-let mapView = 'panels';
-let mapAnimFrame = null;
-
-// ===== INIT =====
-window.addEventListener('load', () => {
-  renderCompanyList();
-  // Google Maps APIはbody末尾のscriptで非同期ロード
-  // initGoogleMap コールバックが呼ばれたら自動で分析開始
-  // Maps未ロードの場合にそなえて pendingAnalysis フラグをセット
-  pendingAnalysis = true;
-});
-
-// ===== LANGUAGE =====
-function setLang(lang) {
-  currentLang = lang;
-  document.body.className = 'lang-' + lang;
-  document.getElementById('btnJa').classList.toggle('active', lang === 'ja');
-  document.getElementById('btnEn').classList.toggle('active', lang === 'en');
-  if (currentResults) rerenderResults(currentResults);
-}
-
-// ===== CITY QUICK SELECT =====
-function setCity(key) {
-  const d = CITY_DATA[key];
-  document.getElementById('addressInput').value = d.address;
-  currentCity = d;
-  updateMapBadge(d);
-}
-
-function updateMapBadge(d) {
-  const badge = document.getElementById('mapBadge');
-  if (badge.querySelector('.ja')) badge.querySelector('.ja').textContent = '📍 ' + (d.label || d.address);
-  if (badge.querySelector('.en')) badge.querySelector('.en').textContent = '📍 ' + (d.addressEn || d.label || d.address);
-  document.getElementById('coordDisplay').textContent = d.lat.toFixed(4) + '° N, ' + d.lng.toFixed(4) + '° E';
-}
-
-function searchAddress() {
-  // 検索ボタン → そのままrunAnalysisを呼ぶ（geocoderが住所を解決する）
-  runAnalysis();
-}
-
-function setCity(key) {
-  const d = CITY_DATA[key];
-  if (!d) return;
-  document.getElementById('addressInput').value = d.address;
-  currentCity = d;
-  // 都市チップをクリックしたらすぐ分析実行
-  runAnalysis();
-}
-
-// ===== COMPANY LIST =====
-function renderCompanyList() {
-  const container = document.getElementById('companyList');
-  container.innerHTML = '';
-  COMPANIES.forEach((c, i) => {
-    const div = document.createElement('div');
-    div.className = 'company-item' + (i === selectedCompany ? ' selected' : '');
-    div.onclick = () => { selectedCompany = i; renderCompanyList(); if (currentResults) rerenderResults(currentResults); };
-
-    const roi = currentResults ? computeROI(currentResults, i) : null;
-
-    div.innerHTML = `
-      <div class="company-color" style="background:${c.color}"></div>
-      <div class="company-info">
-        <div class="company-name">
-          <span class="ja">${c.name}</span>
-          <span class="en">${c.nameEn}</span>
-        </div>
-        <div class="company-spec">${c.efficiency}% · ${c.warranty}yr warranty · ¥${(c.pricePerKW/10000).toFixed(1)}万/kW</div>
-      </div>
-      ${roi ? `<div class="company-roi">+${roi.roi25}%</div>` : ''}
-      <div class="company-check">✓</div>
-    `;
-    container.appendChild(div);
-  });
-}
-
-// ===== MAP CANVAS =====
-// ============================================================
-// GOOGLE MAPS + SOLAR API — 実地図実装
-// ============================================================
-
+// State
+let lang = 'ja';
+let selCo = 0;
+let selBM = 0;
+let battOn = false;
+let curResults = null;
+let solarApiData = null;
+let panelOverlays = [];
+let buildingPoly = null;
 let gmap = null;
-let solarData = null; // Google Solar API レスポンス
-let panelOverlays = []; // 地図上のパネルオーバーレイ
-let buildingPolygon = null;
-let mapInitialized = false;
-let pendingAnalysis = false;
+let mapReady = false;
+let mapView = 'panels';
+let isSat = true;
 
-// Google Maps 初期化コールバック（APIスクリプトから呼ばれる）
+// ============================================================
+// LANGUAGE
+// ============================================================
+function setLang(l) {
+  lang = l;
+  document.body.className = l;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === (l==='ja'?'日本語':'English')));
+  if (curResults) rerenderResults(curResults);
+}
+
+// ============================================================
+// GOOGLE MAPS
+// ============================================================
 function initGoogleMap() {
-  mapInitialized = true;
-  const defaultPos = { lat: 35.6938, lng: 139.7036 };
-  gmap = new google.maps.Map(document.getElementById('googleMap'), {
-    center: defaultPos,
-    zoom: 19,
-    mapTypeId: 'satellite',
-    tilt: 0,
-    rotateControl: false,
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: false,
-    zoomControl: false,
-    styles: [],
+  mapReady = true;
+  gmap = new google.maps.Map(document.getElementById('gmap'), {
+    center:{lat:35.6604,lng:139.7292},
+    zoom:19,
+    mapTypeId:'satellite',
+    tilt:0,
+    disableDefaultUI:true,
   });
-
-  // オーバーレイキャンバスをリサイズ
-  gmap.addListener('bounds_changed', () => syncOverlayCanvas());
-
-  // Maps初期化完了 → 会社リスト描画 → 分析開始
-  renderCompanyList();
-  setTimeout(() => runAnalysis(), 500);
+  renderCoList();
+  setTimeout(()=>runAnalysis(),400);
 }
 
-function syncOverlayCanvas() {
-  const canvas = document.getElementById('solarOverlay');
-  const container = document.getElementById('googleMap');
-  canvas.width  = container.offsetWidth;
-  canvas.height = container.offsetHeight;
-  canvas.style.width  = container.offsetWidth  + 'px';
-  canvas.style.height = container.offsetHeight + 'px';
-}
-
-// 初期化（Google Maps未ロード時のフォールバック）
-function initMap() {
-  if (!mapInitialized) {
-    // Maps APIがまだロードされていない場合はスキップ
-    return;
-  }
-}
-
-// 地図タイプ切替
-let isSatellite = true;
 function toggleMapType() {
-  isSatellite = !isSatellite;
-  if (gmap) gmap.setMapTypeId(isSatellite ? 'satellite' : 'roadmap');
-  document.getElementById('mapTypeBtn').textContent = isSatellite ? '🛰' : '🗺';
+  isSat = !isSat;
+  gmap && gmap.setMapTypeId(isSat?'satellite':'roadmap');
+  document.getElementById('mapTypeBtn').textContent = isSat?'🛰':'🗺';
 }
 
-// 地図を初期位置にリセット
-function resetMapView() {
-  if (gmap && currentResults) {
-    const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
-    gmap.setCenter({ lat: city.lat, lng: city.lng });
-    gmap.setZoom(19);
-  }
+function resetView() {
+  if (!gmap||!curResults) return;
+  const c = NEDO[getCityKey(document.getElementById('addrInput').value)]||NEDO.tokyo;
+  gmap.setCenter({lat:curResults._lat||c.lat,lng:curResults._lng||c.lng});
+  gmap.setZoom(19);
 }
 
-// ジオコーディング：Google Maps JS API の Geocoder を使用（ブラウザから直接呼べる）
-async function geocodeAddress(address) {
-  return new Promise((resolve) => {
-    if (!gmap || !google?.maps?.Geocoder) {
-      resolve(null);
-      return;
-    }
-    const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address: address, region: 'JP' }, (results, status) => {
-      if (status === 'OK' && results.length > 0) {
-        const loc = results[0].geometry.location;
-        resolve({
-          lat: loc.lat(),
-          lng: loc.lng(),
-          formatted: results[0].formatted_address,
-        });
-      } else {
-        console.warn('Geocode failed:', status);
-        resolve(null);
-      }
+function setCity(key) {
+  const d = CITIES[key];
+  if (!d) return;
+  document.getElementById('addrInput').value = d.addr;
+  runAnalysis();
+}
+
+// Geocode via Maps JS API
+function geocode(address) {
+  return new Promise(resolve => {
+    if (!gmap || !google?.maps?.Geocoder) return resolve(null);
+    new google.maps.Geocoder().geocode({address, region:'JP'}, (res,status) => {
+      if (status==='OK' && res.length) {
+        const loc = res[0].geometry.location;
+        resolve({lat:loc.lat(), lng:loc.lng(), formatted:res[0].formatted_address});
+      } else resolve(null);
     });
   });
 }
 
-// Google Solar API 呼び出し
-async function fetchSolarData(lat, lng) {
-  const url = `https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${lat}&location.longitude=${lng}&requiredQuality=HIGH&key=${GOOGLE_API_KEY}`;
+// Solar API
+async function fetchSolarAPI(lat, lng) {
+  const url = `https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${lat}&location.longitude=${lng}&requiredQuality=HIGH&key=${GKEY}`;
   try {
-    const res  = await fetch(url);
-    const data = await res.json();
-    if (data.error) {
-      console.warn('Solar API error:', data.error.message);
-      return null;
-    }
-    return data;
-  } catch(e) {
-    console.warn('Solar API fetch error:', e);
-    return null;
-  }
+    const r = await fetch(url);
+    const d = await r.json();
+    if (d.error) return null;
+    return d;
+  } catch { return null; }
 }
 
-// Solar APIから屋根ポリゴンを描画
-function drawSolarOverlay(lat, lng, solarApiData, mode) {
-  // 既存オーバーレイを消去
-  clearMapOverlays();
+// Clear overlays
+function clearOverlays() {
+  panelOverlays.forEach(o => o.setMap && o.setMap(null));
+  panelOverlays = [];
+  if (buildingPoly) { buildingPoly.setMap(null); buildingPoly = null; }
+}
 
+// Draw panels
+function drawPanels(lat, lng, apiData, mode) {
+  clearOverlays();
   if (!gmap) return;
-
-  // 地図を対象建物にフォーカス
-  gmap.setCenter({ lat, lng });
+  gmap.setCenter({lat, lng});
   gmap.setZoom(19);
 
-  if (!solarApiData) {
-    // Solar APIデータなし：建物位置にマーカーだけ表示
-    drawFallbackMarker(lat, lng);
-    return;
-  }
+  const sp = apiData?.solarPotential;
+  const roofArea = sp?.maxArrayAreaMeters2 || parseFloat(document.getElementById('roofArea').value)||600;
+  const panelCount = parseInt(document.getElementById('panelCount').value)||80;
+  const panels = sp?.solarPanels || [];
 
-  const sp = solarApiData.solarPotential;
-  if (!sp) { drawFallbackMarker(lat, lng); return; }
-
-  // 建物の境界を取得
-  const center = solarApiData.center || { latitude: lat, longitude: lng };
-
-  if (mode === 'panels' || mode === 'annual') {
-    drawPanelLayout(sp, center, mode);
-  } else if (mode === 'shadow') {
-    drawShadowMap(sp, center);
-  }
-
-  // 建物輪郭マーカー
-  drawBuildingOutline(solarApiData, center);
-}
-
-// パネル配置を地図上に描画
-function drawPanelLayout(sp, center, mode) {
-  const panels = sp.solarPanels || [];
-  if (panels.length === 0) {
-    drawEstimatedPanels(center, sp, mode);
-    return;
-  }
-
-  const requestedCount = parseInt(document.getElementById('panelCount').value) || 80;
-  const displayPanels = panels.slice(0, Math.min(requestedCount, panels.length));
-
-  displayPanels.forEach((panel, idx) => {
-    const pLat = panel.center.latitude;
-    const pLng = panel.center.longitude;
-
-    // パネル1枚 約1m × 2m → 緯度経度でオフセット計算
-    const latDelta = 0.000009;  // ~1m
-    const lngDelta = 0.0000125; // ~1m at 35°N
-
-    const corners = [
-      { lat: pLat - latDelta, lng: pLng - lngDelta },
-      { lat: pLat - latDelta, lng: pLng + lngDelta },
-      { lat: pLat + latDelta, lng: pLng + lngDelta },
-      { lat: pLat + latDelta, lng: pLng - lngDelta },
-    ];
-
-    let fillColor, fillOpacity;
-    if (mode === 'annual') {
-      // 日照量ヒートマップ
-      const yearlyFlux = panel.yearlyEnergyDcKwh || 0;
-      const maxFlux = 600;
-      const ratio = Math.min(yearlyFlux / maxFlux, 1);
-      const r = Math.round(245 * ratio);
-      const g = Math.round(158 * ratio * 0.6);
-      fillColor = `rgb(${r},${g},11)`;
-      fillOpacity = 0.85;
-    } else {
-      fillColor = '#1a3a6a';
-      fillOpacity = 0.82;
-    }
-
-    const polygon = new google.maps.Polygon({
-      paths: corners,
-      strokeColor: '#4a8fd4',
-      strokeOpacity: 0.6,
-      strokeWeight: 0.5,
-      fillColor,
-      fillOpacity,
-    });
-    polygon.setMap(gmap);
-    panelOverlays.push(polygon);
-
-    // ホバー情報
-    if (mode === 'annual') {
-      const infoContent = `<div style="font-family:'JetBrains Mono',sans-serif;font-size:11px;padding:4px 8px">
-        年間発電量: ${(panel.yearlyEnergyDcKwh||0).toFixed(0)} kWh<br>
-        方位: ${(panel.azimuthDegrees||0).toFixed(0)}°
-      </div>`;
-      const infoWin = new google.maps.InfoWindow({ content: infoContent });
-      polygon.addListener('mouseover', e => { infoWin.setPosition(e.latLng); infoWin.open(gmap); });
-      polygon.addListener('mouseout', () => infoWin.close());
-    }
-  });
-}
-
-// Solar APIパネルデータがない場合の推定描画
-function drawEstimatedPanels(center, sp, mode) {
-  const roofArea = sp.maxArrayAreaMeters2 || 500;
-  const panelCount = parseInt(document.getElementById('panelCount').value) || 80;
-
-  // 屋根面積からグリッドを生成
-  const side = Math.sqrt(roofArea);
-  const cols = Math.ceil(Math.sqrt(panelCount * 1.6));
-  const rows = Math.ceil(panelCount / cols);
-
-  const latStep  = 0.000018 * (side / 20);
-  const lngStep  = 0.000025 * (side / 20);
-  const startLat = center.latitude  - (rows/2) * latStep;
-  const startLng = center.longitude - (cols/2) * lngStep;
-
-  let count = 0;
-  for (let r = 0; r < rows && count < panelCount; r++) {
-    for (let c = 0; c < cols && count < panelCount; c++) {
-      const pLat = startLat + r * latStep;
-      const pLng = startLng + c * lngStep;
-      const dLat = latStep * 0.45;
-      const dLng = lngStep * 0.45;
-      const corners = [
-        { lat: pLat,       lng: pLng       },
-        { lat: pLat,       lng: pLng+dLng  },
-        { lat: pLat+dLat,  lng: pLng+dLng  },
-        { lat: pLat+dLat,  lng: pLng       },
-      ];
-
-      let fillColor = '#1a3a6a';
-      if (mode === 'annual') {
-        const ratio = 1 - (r * cols + c) / (rows * cols) * 0.4;
-        fillColor = `rgba(${Math.round(245*ratio)},${Math.round(100*ratio)},11)`;
+  if (panels.length > 0) {
+    // Real panel positions from Solar API
+    const display = panels.slice(0, Math.min(panelCount, panels.length));
+    display.forEach((p, idx) => {
+      const dLat=0.000009, dLng=0.0000125;
+      const pLat=p.center.latitude, pLng=p.center.longitude;
+      let fill;
+      if (mode==='annual') {
+        const ratio = Math.min((p.yearlyEnergyDcKwh||0)/600,1);
+        fill = `rgb(${Math.round(245*ratio)},${Math.round(100*ratio)},11)`;
+      } else {
+        fill = '#1a3a6a';
       }
-
       const poly = new google.maps.Polygon({
-        paths: corners,
-        strokeColor: '#4a8fd4', strokeOpacity: 0.5, strokeWeight: 0.5,
-        fillColor, fillOpacity: 0.80,
+        paths:[{lat:pLat-dLat,lng:pLng-dLng},{lat:pLat-dLat,lng:pLng+dLng},{lat:pLat+dLat,lng:pLng+dLng},{lat:pLat+dLat,lng:pLng-dLng}],
+        strokeColor:'#4a8fd4',strokeOpacity:.5,strokeWeight:.5,
+        fillColor:fill,fillOpacity:.82,
       });
       poly.setMap(gmap);
       panelOverlays.push(poly);
-      count++;
-    }
-  }
-}
-
-// 日照シャドウマップ
-function drawShadowMap(sp, center) {
-  const roofArea = sp.maxArrayAreaMeters2 || 500;
-  const side = Math.sqrt(roofArea);
-  const dLat = side * 0.000009;
-  const dLng = side * 0.0000125;
-
-  // 日照量ヒートマップとして屋根全体に色付け
-  const bounds = [
-    { lat: center.latitude - dLat, lng: center.longitude - dLng },
-    { lat: center.latitude - dLat, lng: center.longitude + dLng },
-    { lat: center.latitude + dLat, lng: center.longitude + dLng },
-    { lat: center.latitude + dLat, lng: center.longitude - dLng },
-  ];
-
-  const rect = new google.maps.Polygon({
-    paths: bounds,
-    strokeColor: '#f59e0b', strokeOpacity: 0.8, strokeWeight: 2,
-    fillColor: 'rgba(245,158,11,0.25)', fillOpacity: 0.25,
-  });
-  rect.setMap(gmap);
-  panelOverlays.push(rect);
-
-  // 太陽方向マーカー（南南西から光が来る想定）
-  const sunLat = center.latitude + dLat * 2;
-  const sunLng = center.longitude - dLng * 0.5;
-  const sunMarker = new google.maps.Marker({
-    position: { lat: sunLat, lng: sunLng },
-    map: gmap,
-    icon: {
-      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">
-          <circle cx="16" cy="16" r="10" fill="#fbbf24" opacity="0.9"/>
-          <circle cx="16" cy="16" r="6" fill="#f59e0b"/>
-          <text x="16" y="20" text-anchor="middle" font-size="10" fill="white">☀</text>
-        </svg>`),
-      scaledSize: new google.maps.Size(32, 32),
-      anchor: new google.maps.Point(16, 16),
-    },
-    title: '太陽方向（南）',
-  });
-  panelOverlays.push(sunMarker);
-}
-
-// 建物輪郭表示
-function drawBuildingOutline(solarData, center) {
-  const sp = solarData.solarPotential;
-  const roofArea = sp?.maxArrayAreaMeters2 || 400;
-  const side = Math.sqrt(roofArea) * 1.2;
-  const dLat = side * 0.000009;
-  const dLng = side * 0.0000125;
-
-  if (buildingPolygon) buildingPolygon.setMap(null);
-  buildingPolygon = new google.maps.Polygon({
-    paths: [
-      { lat: center.latitude - dLat, lng: center.longitude - dLng },
-      { lat: center.latitude - dLat, lng: center.longitude + dLng },
-      { lat: center.latitude + dLat, lng: center.longitude + dLng },
-      { lat: center.latitude + dLat, lng: center.longitude - dLng },
-    ],
-    strokeColor: '#f59e0b',
-    strokeOpacity: 0.9,
-    strokeWeight: 2,
-    fillColor: 'transparent',
-    fillOpacity: 0,
-  });
-  buildingPolygon.setMap(gmap);
-}
-
-// フォールバックマーカー（Solar APIデータなし時）
-function drawFallbackMarker(lat, lng) {
-  const marker = new google.maps.Marker({
-    position: { lat, lng },
-    map: gmap,
-    icon: {
-      url: 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(`
-        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40">
-          <circle cx="20" cy="20" r="16" fill="#f59e0b" opacity="0.9" stroke="white" stroke-width="2"/>
-          <text x="20" y="25" text-anchor="middle" font-size="16">🏢</text>
-        </svg>`),
-      scaledSize: new google.maps.Size(40, 40),
-      anchor: new google.maps.Point(20, 20),
-    },
-  });
-  panelOverlays.push(marker);
-}
-
-// 全オーバーレイを消去
-function clearMapOverlays() {
-  panelOverlays.forEach(o => { if (o.setMap) o.setMap(null); });
-  panelOverlays = [];
-  if (buildingPolygon) { buildingPolygon.setMap(null); buildingPolygon = null; }
-}
-
-// 時刻に応じてパネルの色を更新（DataLayersなし時のフォールバック）
-function updatePanelsByTime(altDeg, effPct) {
-  panelOverlays.forEach(overlay => {
-    if (!overlay.setOptions) return;
-    if (altDeg < 5) {
-      overlay.setOptions({ fillColor: '#1a2a3a', fillOpacity: 0.5 });
-    } else {
-      const ratio = effPct / 100;
-      const r = Math.round(26  + (245-26)  * ratio);
-      const g = Math.round(58  + (158-58)  * ratio);
-      const b = Math.round(106 + (11-106)  * ratio);
-      overlay.setOptions({ fillColor: `rgb(${r},${g},${b})`, fillOpacity: 0.75 + ratio * 0.15 });
-    }
-  });
-}
-
-// 太陽位置計算
-function solarDecl(doy) {
-  const B = 2*Math.PI/365*(doy-1);
-  return 0.006918 - 0.399912*Math.cos(B) + 0.070257*Math.sin(B)
-       - 0.006758*Math.cos(2*B) + 0.000907*Math.sin(2*B);
-}
-function solarAlt(lat_deg, decl, hour) {
-  const lat = lat_deg*Math.PI/180;
-  const ha  = Math.PI/12*(hour-12);
-  return Math.asin(Math.sin(lat)*Math.sin(decl)+Math.cos(lat)*Math.cos(decl)*Math.cos(ha));
-}
-
-
-// ============================================================
-// HIGH-PRECISION ENGINE — NEDO METPV-20 + 物理モデル
-// ============================================================
-
-// --- NEDO METPV-20 データ（東京/大阪/名古屋/福岡）---
-const NEDO = {
-  tokyo:   { lat:35.6938, lng:139.7036,
-    ghi:[[0,0,0,0,0,0,0,0.07,0.28,0.51,0.68,0.76,0.74,0.62,0.44,0.21,0.03,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.05,0.30,0.58,0.78,0.89,0.88,0.76,0.56,0.29,0.07,0,0,0,0,0,0,0],[0,0,0,0,0,0,0.02,0.17,0.45,0.73,0.94,1.05,1.04,0.91,0.70,0.43,0.16,0.01,0,0,0,0,0,0],[0,0,0,0,0,0,0.06,0.27,0.56,0.83,1.02,1.12,1.10,0.97,0.76,0.50,0.24,0.05,0,0,0,0,0,0],[0,0,0,0,0,0,0.10,0.34,0.63,0.89,1.07,1.17,1.15,1.02,0.82,0.57,0.31,0.09,0.01,0,0,0,0,0],[0,0,0,0,0,0,0.08,0.27,0.51,0.71,0.84,0.90,0.88,0.78,0.61,0.41,0.20,0.05,0,0,0,0,0,0],[0,0,0,0,0,0,0.09,0.31,0.58,0.80,0.95,1.02,1.00,0.88,0.69,0.46,0.21,0.04,0,0,0,0,0,0],[0,0,0,0,0,0,0.07,0.29,0.58,0.83,1.01,1.10,1.09,0.97,0.77,0.52,0.25,0.05,0,0,0,0,0,0],[0,0,0,0,0,0,0.03,0.20,0.47,0.72,0.90,0.99,0.97,0.85,0.65,0.40,0.15,0.01,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.10,0.37,0.63,0.82,0.92,0.91,0.79,0.59,0.33,0.09,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.04,0.25,0.51,0.69,0.79,0.78,0.66,0.46,0.21,0.03,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.02,0.20,0.45,0.63,0.72,0.70,0.58,0.38,0.15,0.01,0,0,0,0,0,0,0]],
-    sunny:[0.52,0.48,0.44,0.46,0.42,0.28,0.32,0.38,0.36,0.42,0.50,0.54],
-    temp:[5.4,6.1,9.4,14.3,18.8,22.1,25.8,27.4,23.9,18.4,13.1,8.3] },
-  osaka:   { lat:34.6937, lng:135.5023,
-    ghi:[[0,0,0,0,0,0,0,0.09,0.32,0.57,0.74,0.82,0.80,0.68,0.49,0.25,0.05,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.07,0.34,0.63,0.84,0.95,0.94,0.81,0.60,0.33,0.09,0,0,0,0,0,0,0],[0,0,0,0,0,0,0.03,0.20,0.49,0.78,1.00,1.11,1.10,0.96,0.74,0.47,0.19,0.02,0,0,0,0,0,0],[0,0,0,0,0,0,0.08,0.30,0.60,0.88,1.07,1.18,1.16,1.02,0.80,0.53,0.26,0.06,0,0,0,0,0,0],[0,0,0,0,0,0,0.12,0.37,0.67,0.94,1.13,1.22,1.20,1.06,0.85,0.59,0.33,0.10,0.01,0,0,0,0,0],[0,0,0,0,0,0,0.09,0.29,0.54,0.75,0.88,0.94,0.92,0.81,0.64,0.43,0.21,0.05,0,0,0,0,0,0],[0,0,0,0,0,0,0.10,0.33,0.61,0.84,0.99,1.06,1.04,0.92,0.72,0.48,0.23,0.05,0,0,0,0,0,0],[0,0,0,0,0,0,0.08,0.31,0.61,0.87,1.05,1.14,1.12,1.00,0.80,0.54,0.27,0.06,0,0,0,0,0,0],[0,0,0,0,0,0,0.04,0.22,0.51,0.77,0.96,1.05,1.03,0.90,0.69,0.43,0.17,0.02,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.12,0.40,0.67,0.87,0.97,0.96,0.83,0.63,0.37,0.11,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.05,0.27,0.54,0.73,0.83,0.82,0.70,0.50,0.24,0.04,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.03,0.22,0.48,0.66,0.76,0.74,0.62,0.42,0.18,0.02,0,0,0,0,0,0,0]],
-    sunny:[0.48,0.45,0.42,0.44,0.40,0.26,0.34,0.40,0.34,0.44,0.49,0.52],
-    temp:[6.0,7.0,10.4,15.5,20.2,24.2,28.0,29.3,25.5,19.4,13.7,8.5] },
-  nagoya:  { lat:35.1709, lng:136.8815,
-    ghi:[[0,0,0,0,0,0,0,0.10,0.35,0.61,0.79,0.87,0.85,0.72,0.52,0.27,0.06,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.08,0.37,0.67,0.89,1.00,0.99,0.85,0.64,0.36,0.10,0,0,0,0,0,0,0],[0,0,0,0,0,0,0.04,0.22,0.52,0.82,1.04,1.15,1.14,1.00,0.77,0.50,0.21,0.03,0,0,0,0,0,0],[0,0,0,0,0,0,0.09,0.32,0.63,0.91,1.11,1.21,1.19,1.05,0.83,0.56,0.28,0.07,0,0,0,0,0,0],[0,0,0,0,0,0,0.13,0.39,0.70,0.97,1.16,1.26,1.24,1.10,0.88,0.62,0.35,0.11,0.01,0,0,0,0,0],[0,0,0,0,0,0,0.09,0.30,0.55,0.76,0.89,0.95,0.93,0.82,0.65,0.44,0.21,0.05,0,0,0,0,0,0],[0,0,0,0,0,0,0.10,0.34,0.62,0.85,1.00,1.07,1.05,0.93,0.73,0.49,0.23,0.05,0,0,0,0,0,0],[0,0,0,0,0,0,0.08,0.32,0.62,0.88,1.07,1.16,1.14,1.02,0.82,0.56,0.28,0.06,0,0,0,0,0,0],[0,0,0,0,0,0,0.04,0.23,0.52,0.79,0.98,1.07,1.05,0.92,0.71,0.45,0.18,0.02,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.13,0.42,0.70,0.90,1.00,0.99,0.86,0.65,0.39,0.12,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.06,0.29,0.57,0.77,0.87,0.86,0.73,0.53,0.27,0.05,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.04,0.24,0.50,0.69,0.79,0.77,0.65,0.44,0.20,0.03,0,0,0,0,0,0,0]],
-    sunny:[0.54,0.51,0.47,0.48,0.44,0.29,0.31,0.39,0.37,0.45,0.52,0.56],
-    temp:[4.7,5.5,8.9,14.3,19.2,23.3,27.4,29.0,25.3,19.1,13.1,7.6] },
-  fukuoka: { lat:33.5904, lng:130.4017,
-    ghi:[[0,0,0,0,0,0,0,0.11,0.37,0.63,0.81,0.89,0.87,0.74,0.54,0.29,0.07,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.09,0.39,0.69,0.91,1.02,1.01,0.87,0.66,0.38,0.11,0,0,0,0,0,0,0],[0,0,0,0,0,0,0.05,0.24,0.54,0.84,1.06,1.17,1.16,1.02,0.79,0.52,0.23,0.04,0,0,0,0,0,0],[0,0,0,0,0,0,0.10,0.33,0.65,0.93,1.13,1.23,1.21,1.07,0.85,0.58,0.30,0.08,0,0,0,0,0,0],[0,0,0,0,0,0,0.13,0.40,0.71,0.98,1.17,1.27,1.25,1.11,0.89,0.63,0.36,0.12,0.01,0,0,0,0,0],[0,0,0,0,0,0,0.10,0.31,0.57,0.78,0.91,0.97,0.95,0.84,0.67,0.46,0.22,0.06,0,0,0,0,0,0],[0,0,0,0,0,0,0.11,0.35,0.63,0.86,1.01,1.08,1.06,0.94,0.74,0.50,0.24,0.06,0,0,0,0,0,0],[0,0,0,0,0,0,0.09,0.33,0.63,0.89,1.08,1.17,1.15,1.03,0.83,0.57,0.29,0.07,0,0,0,0,0,0],[0,0,0,0,0,0,0.05,0.24,0.53,0.80,0.99,1.08,1.06,0.93,0.72,0.46,0.19,0.03,0,0,0,0,0,0],[0,0,0,0,0,0,0.01,0.14,0.44,0.72,0.92,1.02,1.01,0.88,0.67,0.41,0.14,0.01,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.07,0.31,0.59,0.79,0.89,0.88,0.75,0.55,0.29,0.06,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0.05,0.26,0.52,0.71,0.81,0.79,0.67,0.46,0.22,0.03,0,0,0,0,0,0,0]],
-    sunny:[0.44,0.42,0.40,0.42,0.40,0.24,0.36,0.42,0.32,0.42,0.46,0.48],
-    temp:[7.0,8.2,11.7,16.7,21.2,25.2,29.1,30.2,26.2,20.5,14.7,9.3] },
-};
-
-// 補助金データベース（2025年度）
-const SUBSIDY_DB = {
-  national: [
-    { name:'需要家等省エネ・再エネ設備導入支援', nameEn:'National Self-Consumption Subsidy', rate:0.20, maxPerKW:30000, maxTotal:10000000 },
-    { name:'ZEH-M支援事業（集合住宅）',          nameEn:'ZEH-M Collective Housing',          rate:0.25, maxPerKW:40000, maxTotal:15000000 },
-  ],
-  pref: {
-    tokyo:   [{ name:'集合住宅向け太陽光発電普及促進事業', nameEn:'Tokyo Metro Solar (Apt)',    flat:1000000, perKW:50000, maxTotal:5000000 },
-               { name:'地産地消型再エネ普及拡大事業',      nameEn:'Tokyo Local RE Expansion',  rate:0.10,                maxTotal:3000000 }],
-    osaka:   [{ name:'大阪府再エネ導入促進補助金',         nameEn:'Osaka Pref. RE Subsidy',     rate:0.15,                maxTotal:3000000 }],
-    aichi:   [{ name:'愛知県太陽光設備導入費補助金',        nameEn:'Aichi Pref. Solar Subsidy',  rate:0.10, maxPerKW:20000, maxTotal:2000000 }],
-    fukuoka: [{ name:'福岡県太陽光発電設備導入支援補助金',  nameEn:'Fukuoka Pref. Solar Subsidy',rate:0.10,                maxTotal:2000000 }],
-  },
-};
-
-// 方位係数
-const ORIENT_FACTOR = { south:1.00, southeast:0.96, southwest:0.96, east:0.87, west:0.85, flat:0.92 };
-// シナリオ係数
-const SCENARIO_F    = { avg:1.00, best:1.08, worst:0.87 };
-
-// ---- 物理計算（solarDecl/solarAltは上部で定義済み）----
-function poaIrradiance(ghi, alt, tilt_deg, azimuth_deg) {
-  if (alt<=0||ghi<=0) return 0;
-  const tilt = tilt_deg*Math.PI/180;
-  const cosInc = Math.sin(alt)*Math.cos(tilt)+Math.cos(alt)*Math.sin(tilt)*Math.cos(azimuth_deg*Math.PI/180);
-  if (cosInc<=0) return ghi*0.05;
-  return Math.max(0, ghi*(0.6*cosInc/Math.sin(alt)) + ghi*0.3*(1+Math.cos(tilt))/2 + ghi*0.2*(1-Math.cos(tilt))/2);
-}
-function cellEff(ambT, irr, eff_pct) {
-  const cellT = ambT + (45-20)/800*irr;
-  return (eff_pct/100)*Math.max(0.5, 1+(-0.35/100)*(cellT-25));
-}
-
-// ---- メイン計算 ----
-function computeBaseData() {
-  const area         = parseFloat(document.getElementById('roofArea').value)||600;
-  const floors       = parseInt(document.getElementById('floors').value)||12;
-  const surroundings = document.getElementById('surroundings').value;
-  const monthlyBillMan=parseFloat(document.getElementById('monthlyBill').value)||45;
-  const panelCount   = parseInt(document.getElementById('panelCount').value)||80;
-  const coverage     = parseInt(document.getElementById('coverage').value)/100;
-  const orientation  = document.getElementById('orientation').value;
-  const address      = document.getElementById('addressInput').value;
-
-  // 都市マッチング
-  let cityKey = 'tokyo';
-  if (address.includes('大阪')) cityKey='osaka';
-  else if (address.includes('愛知')||address.includes('名古屋')) cityKey='nagoya';
-  else if (address.includes('福岡')) cityKey='fukuoka';
-  currentCity = CITY_DATA[cityKey==='nagoya'?'nagoya':'tokyo'] || CITY_DATA.tokyo;
-  for (const [k,d] of Object.entries(CITY_DATA)) {
-    if (address.includes(d.label?.split('区')[0]||'')) { currentCity=d; break; }
-  }
-
-  const city     = NEDO[cityKey];
-  const shadingF = {open:0.95,partial:0.82,dense:0.65}[surroundings];
-  const orientF  = ORIENT_FACTOR[orientation]||0.92;
-  const tilt     = orientation==='flat'?5:10;
-  const azimuth  = {south:0,southeast:-45,southwest:45,east:-90,west:90,flat:0}[orientation]||0;
-
-  // システム容量
-  const systemKW = Math.round(panelCount*0.4*10)/10;
-  const panelArea = systemKW*1000/(1000*(COMPANIES[selectedCompany].efficiency/100));
-
-  // NEDO逐時計算（3シナリオ）
-  const scenarios = {};
-  const DAYS_IN_MONTH=[31,28,31,30,31,30,31,31,30,31,30,31];
-  const MID_DOY=[15,46,75,106,136,167,197,228,259,289,320,350];
-
-  for (const sc of ['avg','best','worst']) {
-    const sf = SCENARIO_F[sc];
-    let annKWh=0;
-    const monthly=[];
-    for (let m=0;m<12;m++) {
-      const decl = solarDecl(MID_DOY[m]);
-      const T    = city.temp[m];
-      let mWh=0;
-      for (let h=4;h<=19;h++) {
-        const ghiMJ = city.ghi[m][h]*sf;
-        const ghiW  = ghiMJ*1000/3.6;
-        if (ghiW<5) continue;
-        const alt  = solarAlt(city.lat, decl, h);
-        const poa  = poaIrradiance(ghiW, alt, tilt, azimuth);
-        const eff  = cellEff(T, poa, COMPANIES[selectedCompany].efficiency);
-        // 時刻依存遮蔽（低仰角で遮蔽増加）
-        const shade = alt<0.3 ? shadingF*0.72 : shadingF;
-        mWh += poa*eff*panelArea*shade*0.85*DAYS_IN_MONTH[m];
+    });
+  } else {
+    // Estimated grid
+    const side = Math.sqrt(roofArea);
+    const cols = Math.ceil(Math.sqrt(panelCount*1.5));
+    const rows = Math.ceil(panelCount/cols);
+    const dLat=0.000017*(side/20), dLng=0.000024*(side/20);
+    const sLat=lat-(rows/2)*dLat, sLng=lng-(cols/2)*dLng;
+    let cnt=0;
+    for (let r=0;r<rows&&cnt<panelCount;r++) {
+      for (let c=0;c<cols&&cnt<panelCount;c++) {
+        const pLat=sLat+r*dLat, pLng=sLng+c*dLng;
+        const dL=dLat*.44, dG=dLng*.44;
+        let fill = mode==='annual' ? `rgba(${Math.round(245*(1-cnt/panelCount*.4))},${Math.round(100*(1-cnt/panelCount*.3))},11)` : '#1a3a6a';
+        const poly = new google.maps.Polygon({
+          paths:[{lat:pLat,lng:pLng},{lat:pLat,lng:pLng+dG},{lat:pLat+dL,lng:pLng+dG},{lat:pLat+dL,lng:pLng}],
+          strokeColor:'#4a8fd4',strokeOpacity:.4,strokeWeight:.5,
+          fillColor:fill,fillOpacity:.80,
+        });
+        poly.setMap(gmap);
+        panelOverlays.push(poly);
+        cnt++;
       }
-      const kWh = Math.round(mWh/1000);
-      monthly.push(kWh);
-      annKWh += kWh;
     }
-    scenarios[sc] = { annualKWh:Math.round(annKWh), monthlyKWh:monthly };
   }
 
-  // スコア計算
-  let score=55;
-  score += (shadingF-0.65)/0.30*18;
-  score += (orientF-0.85)/0.15*10;
-  score += Math.min(area/2000,1)*10;
-  score += ({tokyo:2,osaka:4,nagoya:4,fukuoka:5}[cityKey]||2);
-  score = Math.round(Math.min(Math.max(score,38),97));
-
-  // 補助金
-  const prefKey = {tokyo:'tokyo',osaka:'osaka',nagoya:'aichi',fukuoka:'fukuoka'}[cityKey]||'tokyo';
-  const installCost = Math.round(systemKW*COMPANIES[selectedCompany].pricePerKW);
-  const { subsidies, totalSubsidy } = _calcSubsidies(prefKey, systemKW, installCost);
-
-  return {
-    address, area, floors, surroundings, monthlyBillMan, panelCount, coverage, orientation,
-    shadingFactor:shadingF, orientFactor:orientF, usableArea:area*coverage,
-    systemKW, panelArea, cityKey, prefKey, score,
-    annualKWh:   scenarios.avg.annualKWh,
-    monthlyKWh:  scenarios.avg.monthlyKWh,
-    scenarios,
-    installCost, subsidies, totalSubsidy,
-    sunnyRatios: city.sunny,
-    avgTemps:    city.temp,
-  };
+  // Building outline
+  const side2 = Math.sqrt(roofArea)*1.3;
+  const dLat2=side2*.000009, dLng2=side2*.0000125;
+  buildingPoly = new google.maps.Polygon({
+    paths:[{lat:lat-dLat2,lng:lng-dLng2},{lat:lat-dLat2,lng:lng+dLng2},{lat:lat+dLat2,lng:lng+dLng2},{lat:lat+dLat2,lng:lng-dLng2}],
+    strokeColor:'#f59e0b',strokeOpacity:.9,strokeWeight:2,
+    fillColor:'transparent',fillOpacity:0,
+  });
+  buildingPoly.setMap(gmap);
 }
 
-function _calcSubsidies(prefKey, systemKW, installCost) {
-  const subsidies=[]; let total=0;
+// Shadow mode: color panels by sun time
+function applyTimeToPanel(altDeg, effPct) {
+  panelOverlays.forEach(o => {
+    if (!o.setOptions) return;
+    if (altDeg < 5) {
+      o.setOptions({fillColor:'#1a2a3a',fillOpacity:.45});
+    } else {
+      const r2 = effPct/100;
+      o.setOptions({fillColor:`rgb(${Math.round(26+(245-26)*r2)},${Math.round(58+(158-58)*r2)},${Math.round(106+(11-106)*r2)})`,fillOpacity:.78+r2*.12});
+    }
+  });
+}
+
+function setView(v) {
+  mapView = v;
+  ['vbtnPanels','vbtnShadow','vbtnAnnual'].forEach(id => {
+    document.getElementById(id).classList.toggle('on',
+      id==='vbtn'+v.charAt(0).toUpperCase()+v.slice(1));
+  });
+  const sp = document.getElementById('sunPanel');
+  sp.classList.toggle('show', v==='shadow');
+
+  if (!curResults||!gmap) return;
+  const ck = getCityKey(document.getElementById('addrInput').value);
+  const c = NEDO[ck]||NEDO.tokyo;
+  const lat = curResults._lat||c.lat, lng = curResults._lng||c.lng;
+
+  if (v==='panels'||v==='annual') {
+    drawPanels(lat, lng, solarApiData, v);
+  } else if (v==='shadow') {
+    drawPanels(lat, lng, solarApiData, 'panels');
+    onSunSlider(document.getElementById('sunSlider').value);
+  }
+}
+
+// ============================================================
+// SUN SLIDER
+// ============================================================
+function solarDecl(doy){const B=2*Math.PI/365*(doy-1);return .006918-.399912*Math.cos(B)+.070257*Math.sin(B)-.006758*Math.cos(2*B)+.000907*Math.sin(2*B);}
+function solarAltFn(lat_deg,decl,hour){const lat=lat_deg*Math.PI/180,ha=Math.PI/12*(hour-12);return Math.asin(Math.sin(lat)*Math.sin(decl)+Math.cos(lat)*Math.cos(decl)*Math.cos(ha));}
+
+function onSunSlider(val) {
+  const hour = parseFloat(val);
+  const h=Math.floor(hour), m=Math.round((hour-h)*60);
+  document.getElementById('sunTimeTxt').textContent = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+  if (!curResults) return;
+  const ck = getCityKey(document.getElementById('addrInput').value);
+  const lat = curResults._lat||(NEDO[ck]||NEDO.tokyo).lat;
+  const decl = solarDecl(182);
+  const alt = solarAltFn(lat,decl,hour);
+  const altDeg = Math.max(0,alt*180/Math.PI);
+  const ha = (hour-12)*15;
+  const az = 180+ha*.85;
+  const eff = altDeg<5?0:Math.round(Math.sin(Math.max(0,alt))*100);
+  document.getElementById('sunAlt').textContent = altDeg.toFixed(1)+'°';
+  document.getElementById('sunAz').textContent = az.toFixed(0)+'°';
+  document.getElementById('sunEff').textContent = eff+'%';
+  applyTimeToPanel(altDeg, eff);
+}
+
+// ============================================================
+// PHYSICS ENGINE (NEDO)
+// ============================================================
+function poaIrr(ghi,alt,tilt,az){
+  if(alt<=0||ghi<=0)return 0;
+  const tr=tilt*Math.PI/180,cosI=Math.sin(alt)*Math.cos(tr)+Math.cos(alt)*Math.sin(tr)*Math.cos(az*Math.PI/180);
+  if(cosI<=0)return ghi*.05;
+  return Math.max(0,ghi*(.6*cosI/Math.sin(alt))+ghi*.3*(1+Math.cos(tr))/2+ghi*.2*(1-Math.cos(tr))/2);
+}
+function cellEff(T,irr,eff_pct){return(eff_pct/100)*Math.max(.5,1+(-.35/100)*(T+(45-20)/800*irr-25));}
+
+function getCityKey(addr) {
+  if (addr.includes('大阪'))return'osaka';
+  if (addr.includes('愛知')||addr.includes('名古屋'))return'nagoya';
+  if (addr.includes('福岡'))return'fukuoka';
+  return'tokyo';
+}
+
+function getPrefKey(addr) {
+  if (addr.includes('大阪'))return'osaka';
+  if (addr.includes('愛知')||addr.includes('名古屋'))return'aichi';
+  if (addr.includes('福岡'))return'fukuoka';
+  return'tokyo';
+}
+
+function calcSubsidies(prefKey, sysKW, installCost) {
+  const subs=[]; let total=0;
   for (const s of SUBSIDY_DB.national) {
-    let a = installCost*s.rate;
-    if (s.maxPerKW) a=Math.min(a,systemKW*s.maxPerKW);
-    if (s.maxTotal) a=Math.min(a,s.maxTotal);
-    a=Math.round(a); subsidies.push({...s,amount:a,level:'国'}); total+=a;
+    let a=installCost*s.rate;
+    if(s.maxPerKW)a=Math.min(a,sysKW*s.maxPerKW);
+    if(s.maxTotal)a=Math.min(a,s.maxTotal);
+    a=Math.round(a); subs.push({...s,amount:a,level:'国'}); total+=a;
   }
   for (const s of (SUBSIDY_DB.pref[prefKey]||[])) {
     let a=0;
-    if (s.rate)  a+=installCost*s.rate;
-    if (s.flat)  a+=s.flat;
-    if (s.perKW) a+=systemKW*s.perKW;
-    if (s.maxTotal) a=Math.min(a,s.maxTotal);
-    a=Math.round(a); subsidies.push({...s,amount:a,level:'都道府県'}); total+=a;
+    if(s.rate)a+=installCost*s.rate;
+    if(s.flat)a+=s.flat;
+    if(s.perKW)a+=sysKW*s.perKW;
+    if(s.maxTotal)a=Math.min(a,s.maxTotal);
+    a=Math.round(a); subs.push({...s,amount:a,level:'都道府県'}); total+=a;
   }
-  return { subsidies, totalSubsidy:total };
+  return {subs, total};
 }
 
-function computeROI(base, companyIdx) {
-  const c           = COMPANIES[companyIdx];
-  const effRatio    = c.efficiency / COMPANIES[0].efficiency;
-  const annualKWh   = Math.round(base.annualKWh * effRatio);
-  const installCost = Math.round(base.systemKW * c.pricePerKW);
-
-  // 補助金再計算（会社変更時）
-  const {totalSubsidy} = _calcSubsidies(base.prefKey, base.systemKW, installCost);
-  const netCost = Math.round(installCost - totalSubsidy);
-
-  const elecRate = 30;      // ¥/kWh 商業用
-  const fitRate  = 12;      // 売電単価
-  const selfRate = 0.70;    // 自家消費率
-
-  // 年別CF（劣化・電気代上昇・維持費考慮）
-  const cum=[]; let running=-netCost; let paybackY=null;
-  for (let y=1;y<=25;y++) {
-    const deg   = Math.pow(0.9945,y);
-    const gen   = annualKWh*deg;
-    const elecY = elecRate*Math.pow(1.03,y);
-    const benefit = Math.round(gen*selfRate*elecY + gen*(1-selfRate)*fitRate);
-    const maint   = Math.round(base.systemKW*5000);
-    running += benefit-maint;
-    if (paybackY===null&&running>=0) paybackY=y;
-    cum.push(Math.round(running/10000));
+function computeBase() {
+  const addr = document.getElementById('addrInput').value;
+  const area = parseFloat(document.getElementById('roofArea').value)||600;
+  const panelCount = parseInt(document.getElementById('panelCount').value)||80;
+  const coverage = parseInt(document.getElementById('coverage').value)/100;
+  const orientation = document.getElementById('orientation').value;
+  const surroundings = document.getElementById('surroundings').value;
+  const ck = getCityKey(addr);
+  const city = NEDO[ck]||NEDO.tokyo;
+  const shadingF = {open:.95,partial:.82,dense:.65}[surroundings];
+  const orientF = ORIENT_F[orientation]||.92;
+  const tilt = orientation==='flat'?5:10;
+  const azimuth = {south:0,southeast:-45,southwest:45,east:-90,west:90,flat:0}[orientation]||0;
+  const sysKW = Math.round(panelCount*.4*10)/10;
+  const panelArea = sysKW*1000/(1000*(COMPANIES[selCo].efficiency/100));
+  const DAYS=[31,28,31,30,31,30,31,31,30,31,30,31];
+  const DOY=[15,46,75,106,136,167,197,228,259,289,320,350];
+  const scenarios={};
+  for (const sc of ['avg','best','worst']) {
+    const sf=SCENARIO_F[sc];
+    let annKWh=0; const monthly=[];
+    for (let m=0;m<12;m++) {
+      const decl=solarDecl(DOY[m]),T=city.temp[m];
+      let mWh=0;
+      for (let h=4;h<=19;h++) {
+        const ghiW=city.ghi[m][h]*sf*1000/3.6;
+        if(ghiW<5)continue;
+        const alt=solarAltFn(city.lat,decl,h);
+        const poa=poaIrr(ghiW,alt,tilt,azimuth);
+        const eff=cellEff(T,poa,COMPANIES[selCo].efficiency);
+        const shade=alt<.3?shadingF*.72:shadingF;
+        mWh+=poa*eff*panelArea*shade*.85*DAYS[m];
+      }
+      const kWh=Math.round(mWh/1000); monthly.push(kWh); annKWh+=kWh;
+    }
+    scenarios[sc]={annualKWh:Math.round(annKWh),monthlyKWh:monthly};
   }
-
-  const roi25 = Math.round((cum[24]/(netCost/10000))*100);
-  const annualSavings = Math.round(annualKWh*selfRate*elecRate + annualKWh*(1-selfRate)*fitRate);
-
-  return {
-    installCost, totalSubsidy, netCost, annualSavings, annualKWh, elecRate,
-    payback: paybackY||'>25', cum, roi25,
-    subsidies: base.subsidies,
-  };
+  let score=55;
+  score+=(shadingF-.65)/.30*18;
+  score+=(orientF-.85)/.15*10;
+  score+=Math.min(area/2000,1)*10;
+  score+=({tokyo:2,osaka:4,nagoya:4,fukuoka:5}[ck]||2);
+  score=Math.round(Math.min(Math.max(score,38),97));
+  const installCost=Math.round(sysKW*COMPANIES[selCo].pricePerKW);
+  const prefKey=getPrefKey(addr);
+  const {subs,total}=calcSubsidies(prefKey,sysKW,installCost);
+  return {addr,area,panelCount,coverage,orientation,surroundings,ck,prefKey,shadingFactor:shadingF,orientFactor:orientF,usableArea:area*coverage,sysKW,panelArea,score,annualKWh:scenarios.avg.annualKWh,monthlyKWh:scenarios.avg.monthlyKWh,scenarios,installCost,subsidies:subs,totalSubsidy:total};
 }
 
+function computeROI(base, coIdx) {
+  const c=COMPANIES[coIdx];
+  const effR=c.efficiency/COMPANIES[0].efficiency;
+  const annKWh=Math.round(base.annualKWh*effR);
+  const installCost=Math.round(base.sysKW*c.pricePerKW);
+  const {total}=calcSubsidies(base.prefKey,base.sysKW,installCost);
+  const netCost=Math.round(installCost-total);
+  const elecRate=30,fitRate=12,selfRate=.70;
+  const cum=[]; let run=-netCost,payY=null;
+  for(let y=1;y<=25;y++){
+    const deg=Math.pow(.9945,y),gen=annKWh*deg;
+    const ben=Math.round(gen*selfRate*elecRate*Math.pow(1.03,y)+gen*(1-selfRate)*fitRate);
+    const maint=Math.round(base.sysKW*5000);
+    run+=ben-maint;
+    if(payY===null&&run>=0)payY=y;
+    cum.push(Math.round(run/10000));
+  }
+  const annSav=Math.round(annKWh*selfRate*elecRate+annKWh*(1-selfRate)*fitRate);
+  const roi25=Math.round((cum[24]/(netCost/10000))*100);
+  return {installCost,totalSubsidy:total,netCost,annSav,annKWh,elecRate,payback:payY||'>25',cum,roi25,subsidies:base.subsidies};
+}
+
+// ============================================================
+// MAIN ANALYSIS
+// ============================================================
 function runAnalysis() {
-  // Google Maps未初期化の場合は待機
-  if (!mapInitialized) {
-    pendingAnalysis = true;
-    return;
-  }
+  if (!mapReady) return;
+  const addr = document.getElementById('addrInput').value.trim();
+  if (!addr) return;
 
-  // 新住所の分析時はDataLayersキャッシュをリセット
-  dataLayersCache = null;
-  if (activeOverlay) { activeOverlay.setMap(null); activeOverlay = null; }
-  const legend = document.getElementById('colorLegend');
-  if (legend) legend.remove();
+  setLoading(true, 'GEOCODING...');
 
-  const overlay = document.getElementById('loadingOverlay');
-  overlay.classList.add('show');
-
-  const steps = ['step1','step2','step3','step4'];
-  steps.forEach(s => document.getElementById(s).className = 'loading-step');
-
-  let i = 0;
-  const stepInterval = setInterval(() => {
-    if (i > 0) document.getElementById(steps[i-1]).className = 'loading-step done';
-    if (i < steps.length) { document.getElementById(steps[i]).className = 'loading-step active'; i++; }
-    else clearInterval(stepInterval);
-  }, 600);
-
-  const address = document.getElementById('addressInput').value;
-
-  // 非同期処理：ジオコーディング → Solar API → 計算
-  (async () => {
+  (async()=>{
     try {
-      // Step1: ジオコーディング
-      const geo = await geocodeAddress(address);
-      const lat  = geo?.lat  || NEDO[getCityKey(address)].lat;
-      const lng  = geo?.lng  || NEDO[getCityKey(address)].lng;
-      const formatted = geo?.formatted || address;
+      // 1. Geocode
+      const geo = await geocode(addr);
+      const lat = geo?.lat||(NEDO[getCityKey(addr)]||NEDO.tokyo).lat;
+      const lng = geo?.lng||(NEDO[getCityKey(addr)]||NEDO.tokyo).lng;
 
-      // 地図バッジ更新
-      document.getElementById('coordDisplay').textContent =
-        `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`;
+      // Update badge
+      document.getElementById('coordTxt').textContent = lat.toFixed(4)+'° N, '+lng.toFixed(4)+'° E';
+      const badge = document.getElementById('mapBadge');
+      badge.querySelector('.ja').textContent = '📍 '+(geo?.formatted||addr).substring(0,20);
+      badge.querySelector('.en').textContent = '📍 '+(geo?.formatted||addr).substring(0,20);
 
-      // Step2: Solar API
-      solarData = await fetchSolarData(lat, lng);
+      setLoading(true,'SOLAR API...');
 
-      // Step3: NEDO計算
-      const base = computeBaseData();
-      base._lat = lat;
-      base._lng = lng;
-
-      // Solar APIデータがあれば屋根面積を上書き
-      if (solarData?.solarPotential) {
-        const sp = solarData.solarPotential;
-        if (sp.maxArrayAreaMeters2 && base.area < sp.maxArrayAreaMeters2) {
-          // APIの方が実測に近い場合は参考値として表示
-          console.log(`Solar API roofArea: ${sp.maxArrayAreaMeters2}m²`);
-        }
-        // 遮蔽係数をAPIから取得
-        const shadedFrac = sp.wholeRoofStats?.shadedAreaFraction || 0.1;
-        base.shadingFactor = Math.max(0.5, 1 - shadedFrac);
+      // 2. Solar API
+      solarApiData = await fetchSolarAPI(lat, lng);
+      if (solarApiData?.solarPotential) {
+        console.log('Solar API ok, roofArea:', solarApiData.solarPotential.maxArrayAreaMeters2);
       }
 
-      currentResults = base;
+      setLoading(true,'CALCULATING...');
 
-      // Step4: 地図描画
-      drawSolarOverlay(lat, lng, solarData, mapView);
+      // 3. Compute
+      const base = computeBase();
+      base._lat = lat; base._lng = lng;
 
-      clearInterval(stepInterval);
-      overlay.classList.remove('show');
-      renderCompanyList();
+      // Adjust shading from Solar API
+      if (solarApiData?.solarPotential?.wholeRoofStats) {
+        const sf = 1-(solarApiData.solarPotential.wholeRoofStats.shadedAreaFraction||.1);
+        base.shadingFactor = Math.max(.5,sf);
+      }
+
+      curResults = base;
+
+      // 4. Draw map
+      drawPanels(lat, lng, solarApiData, mapView==='annual'?'annual':'panels');
+
+      setLoading(false);
+      renderCoList();
       showResults(base);
 
-    } catch(err) {
-      console.error('Analysis error:', err);
-      clearInterval(stepInterval);
-      overlay.classList.remove('show');
-      // フォールバック：APIエラーでもNEDOデータで計算
-      const base = computeBaseData();
-      currentResults = base;
-      const city = NEDO[base.cityKey] || NEDO.tokyo;
-      drawSolarOverlay(city.lat, city.lng, null, mapView);
-      renderCompanyList();
+    } catch(e) {
+      console.error('Analysis error:',e);
+      setLoading(false);
+      const base = computeBase();
+      const c = NEDO[getCityKey(document.getElementById('addrInput').value)]||NEDO.tokyo;
+      curResults = base;
+      drawPanels(c.lat,c.lng,null,'panels');
+      renderCoList();
       showResults(base);
     }
   })();
 }
 
-function getCityKey(address) {
-  if (address.includes('大阪')) return 'osaka';
-  if (address.includes('愛知')||address.includes('名古屋')) return 'nagoya';
-  if (address.includes('福岡')) return 'fukuoka';
-  return 'tokyo';
+function setLoading(show, msg='') {
+  const el = document.getElementById('mapLoading');
+  el.classList.toggle('show',show);
+  if (msg) document.getElementById('loadingMsg').textContent = msg;
 }
 
+// ============================================================
+// RENDER
+// ============================================================
 function showResults(base) {
-  document.getElementById('resultsEmpty').style.display = 'none';
-  const content = document.getElementById('resultsContent');
-  content.classList.add('show');
+  document.getElementById('rEmpty').style.display='none';
+  document.getElementById('rBody').classList.add('show');
   rerenderResults(base);
 }
 
 function rerenderResults(base) {
-  const roi = computeROI(base, selectedCompany);
-
+  const roi = computeROI(base,selCo);
   // Header
-  document.getElementById('rAddress').textContent = base.address;
-  document.getElementById('rMeta').textContent =
-    `${new Date().toLocaleDateString(currentLang==='ja'?'ja-JP':'en-US')}  ·  NEDO METPV-20 + 物理モデル  ·  #SIQ-${Math.random().toString(36).substr(2,6).toUpperCase()}`;
+  document.getElementById('rAddr').textContent = base.addr;
+  document.getElementById('rMeta').textContent = new Date().toLocaleDateString(lang==='ja'?'ja-JP':'en-US')+' · NEDO METPV-20 · #SIQ-'+Math.random().toString(36).substr(2,6).toUpperCase();
   document.getElementById('rScore').textContent = base.score;
-
   // KPIs
-  document.getElementById('kpi1').textContent = (base.annualKWh/1000).toFixed(1)+'万';
-  document.getElementById('kpi2').textContent = (roi.annualSavings/10000).toFixed(1);
-  document.getElementById('kpi3').textContent = roi.payback;
-  const net25 = roi.cum[24];
-  document.getElementById('kpi4').textContent = (net25>0?'+':'')+net25;
-
-  // Panel display
-  document.getElementById('panelCountDisplay').textContent = base.panelCount;
-  document.getElementById('systemKWDisplay').textContent   = base.systemKW;
-
-  // Charts
+  document.getElementById('k1').textContent = (base.annualKWh/1000).toFixed(1)+'万';
+  document.getElementById('k2').textContent = (roi.annSav/10000).toFixed(1);
+  document.getElementById('k3').textContent = roi.payback;
+  document.getElementById('k4').textContent = (roi.cum[24]>=0?'+':'')+roi.cum[24];
+  document.getElementById('panelCountDisp').textContent = base.panelCount;
+  document.getElementById('sysKWDisp').textContent = base.sysKW;
   renderBarChart(base.monthlyKWh);
-  renderROIChart3Scenarios(base);
-  renderCalcSteps(base, roi);
+  renderROIChart(base);
+  renderCalcSteps(base,roi);
   renderFactors(base);
-  renderSubsidyTable(base, roi);
+  renderSubsidy(roi);
   renderPanelGrid(base.panelCount);
-
-  // Company list update
-  renderCompanyList();
+  renderCoList();
+  if (battOn) renderBattSection(base);
 }
 
-function renderSubsidyTable(base, roi) {
-  // Find or create subsidy card
-  let card = document.getElementById('subsidyCard');
-  if (!card) {
-    card = document.createElement('div');
-    card.id = 'subsidyCard';
-    card.className = 'result-card';
-    card.style.marginTop = '0';
-    // Insert after factors card
-    const factorCard = document.getElementById('factorList').parentElement;
-    factorCard.parentElement.insertBefore(card, factorCard.nextSibling);
-  }
-
-  const isJa = currentLang==='ja';
-  const rows = roi.subsidies.map(s => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--gray)">
-      <div>
-        <div style="font-size:11px;font-weight:600;color:var(--ink2)">${isJa?s.name:s.nameEn||s.name}</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);margin-top:2px">${s.level}</div>
-      </div>
-      <div style="font-family:'DM Serif Display',serif;font-size:16px;color:var(--green);white-space:nowrap">
-        ▲¥${(s.amount/10000).toFixed(0)}万
-      </div>
-    </div>
-  `).join('');
-
-  card.innerHTML = `
-    <div class="card-title">
-      <span class="card-title-dot" style="background:var(--green)"></span>
-      <span>${isJa?'補助金シミュレーション':'Subsidy Calculation'}</span>
-    </div>
-    ${rows}
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:12px;background:var(--green2);border-radius:8px">
-      <div style="font-size:12px;font-weight:600;color:var(--green)">${isJa?'補助金合計':'Total Subsidies'}</div>
-      <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--green)">¥${(roi.totalSubsidy/10000).toFixed(0)}万</div>
-    </div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px;padding:10px;background:var(--gray);border-radius:8px">
-      <div style="font-size:11px;color:var(--gray3)">${isJa?'実質負担額（補助金後）':'Net Install Cost (after subsidy)'}</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--ink)">¥${(roi.netCost/10000).toFixed(0)}万</div>
-    </div>
-  `;
-}
-
-function renderROIChart3Scenarios(base) {
-  const canvas = document.getElementById('roiCanvas');
-  const W = canvas.offsetWidth||300, H=100;
-  const dpr = window.devicePixelRatio||1;
-  canvas.width=W*dpr; canvas.height=H*dpr;
-  canvas.style.width=W+'px'; canvas.style.height=H+'px';
-  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
-
-  // Build 3 scenario cum arrays
-  const scColors = { best:'#059669', avg:'#2563eb', worst:'#dc2626' };
-  const scLabels = currentLang==='ja'
-    ? {best:'多照年',avg:'平均年',worst:'寡照年'}
-    : {best:'Best',avg:'Avg',worst:'Worst'};
-
-  const allCums = {};
-  for (const sc of ['best','avg','worst']) {
-    const scData = base.scenarios[sc];
-    const c = COMPANIES[selectedCompany];
-    const effR = c.efficiency/COMPANIES[0].efficiency;
-    const annKWh = Math.round(scData.annualKWh*effR);
-    const installC = Math.round(base.systemKW*c.pricePerKW);
-    const {totalSubsidy} = _calcSubsidies(base.prefKey,base.systemKW,installC);
-    const netC = installC-totalSubsidy;
-    let r=-netC; const cum=[];
-    for (let y=1;y<=25;y++) {
-      const gen=annKWh*Math.pow(0.9945,y);
-      r+=Math.round(gen*0.7*30*Math.pow(1.03,y)+gen*0.3*12)-Math.round(base.systemKW*5000);
-      cum.push(Math.round(r/10000));
-    }
-    allCums[sc]=cum;
-  }
-
-  const allVals = Object.values(allCums).flat();
-  const minV=Math.min(...allVals,0), maxV=Math.max(...allVals);
-  const range=maxV-minV||1;
-  const pad={l:4,r:60,t:10,b:18};
-  const cw=W-pad.l-pad.r, ch=H-pad.t-pad.b;
-
-  // Zero line
-  const zY=pad.t+ch-((0-minV)/range)*ch;
-  ctx.strokeStyle='rgba(0,0,0,0.08)'; ctx.lineWidth=1; ctx.setLineDash([3,3]);
-  ctx.beginPath(); ctx.moveTo(pad.l,zY); ctx.lineTo(pad.l+cw,zY); ctx.stroke();
-  ctx.setLineDash([]);
-
-  for (const sc of ['worst','avg','best']) {
-    const cum=allCums[sc];
-    const pts=cum.map((v,i)=>({x:pad.l+(i/(cum.length-1))*cw,y:pad.t+ch-((v-minV)/range)*ch}));
-    ctx.beginPath();
-    pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle=scColors[sc]; ctx.lineWidth=sc==='avg'?2:1.5;
-    if (sc!=='avg') ctx.setLineDash([4,3]);
-    ctx.stroke(); ctx.setLineDash([]);
-
-    // End label
-    const last=pts[pts.length-1];
-    ctx.fillStyle=scColors[sc];
-    ctx.font=`${sc==='avg'?'bold ':''} 9px JetBrains Mono`;
-    ctx.textAlign='left';
-    ctx.fillText(scLabels[sc]+' +'+cum[24]+'万', last.x+4, last.y+3);
-  }
-
-  // Year labels
-  ctx.fillStyle='rgba(100,116,139,0.8)'; ctx.font='9px JetBrains Mono'; ctx.textAlign='center';
-  [5,10,15,20,25].forEach(y=>{
-    const x=pad.l+((y-1)/24)*cw;
-    ctx.fillText(y+(currentLang==='ja'?'年':'yr'), x, H-4);
-  });
-}
-
-function renderBarChart(monthlyKWh) {
-  const container = document.getElementById('barChart');
-  container.innerHTML = '';
-  const max = Math.max(...monthlyKWh);
-  const labels = currentLang === 'ja' ? MONTH_LABELS_JA : MONTH_LABELS_EN;
-
-  monthlyKWh.forEach((v, i) => {
-    const pct = v / max;
-    const hue = 200 + (1 - pct) * 30;
-    const sat = 70 + pct * 20;
-    const item = document.createElement('div');
-    item.className = 'bar-item';
-    item.innerHTML = `
-      <div class="bar-fill" style="height:0;background:hsl(${hue},${sat}%,45%);transition:height 0.8s cubic-bezier(0.34,1.56,0.64,1) ${i*0.04}s" data-val="${v}kWh"></div>
-      <div class="bar-month">${labels[i]}</div>
-    `;
-    container.appendChild(item);
-    setTimeout(() => { item.querySelector('.bar-fill').style.height = Math.round(pct * 75) + 'px'; }, 50);
-  });
-}
-
-function renderROIChart(cumulative) {
-  const canvas = document.getElementById('roiCanvas');
-  const W = canvas.offsetWidth || 300;
-  const H = 100;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = W * dpr;
-  canvas.height = H * dpr;
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
-  const ctx = canvas.getContext('2d');
-  ctx.scale(dpr, dpr);
-
-  const min = Math.min(...cumulative, 0);
-  const max = Math.max(...cumulative);
-  const range = max - min || 1;
-  const pad = { l:4, r:4, t:10, b:18 };
-  const cw = W - pad.l - pad.r;
-  const ch = H - pad.t - pad.b;
-
-  const pts = cumulative.map((v, i) => ({
-    x: pad.l + (i / (cumulative.length - 1)) * cw,
-    y: pad.t + ch - ((v - min) / range) * ch
-  }));
-
-  // Zero line
-  const zeroY = pad.t + ch - ((0 - min) / range) * ch;
-  ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-  ctx.lineWidth = 1;
-  ctx.setLineDash([3, 3]);
-  ctx.beginPath();
-  ctx.moveTo(pad.l, zeroY);
-  ctx.lineTo(pad.l + cw, zeroY);
-  ctx.stroke();
-  ctx.setLineDash([]);
-
-  // Negative fill
-  if (min < 0) {
-    const negGrad = ctx.createLinearGradient(0, zeroY, 0, pad.t + ch);
-    negGrad.addColorStop(0, 'rgba(220,38,38,0.1)');
-    negGrad.addColorStop(1, 'rgba(220,38,38,0.02)');
-    ctx.fillStyle = negGrad;
-    ctx.beginPath();
-    pts.forEach((p, i) => {
-      if (i === 0) ctx.moveTo(p.x, Math.min(p.y, zeroY));
-      else if (cumulative[i] < 0) ctx.lineTo(p.x, p.y);
-      else ctx.lineTo(p.x, zeroY);
-    });
-    ctx.lineTo(pad.l + cw, zeroY);
-    ctx.lineTo(pad.l, zeroY);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // Positive fill
-  const posGrad = ctx.createLinearGradient(0, pad.t, 0, zeroY);
-  posGrad.addColorStop(0, 'rgba(5,150,105,0.2)');
-  posGrad.addColorStop(1, 'rgba(5,150,105,0.02)');
-  ctx.fillStyle = posGrad;
-  ctx.beginPath();
-  pts.forEach((p, i) => {
-    const y = cumulative[i] > 0 ? p.y : zeroY;
-    if (i === 0) ctx.moveTo(p.x, y);
-    else ctx.lineTo(p.x, cumulative[i] > 0 ? p.y : zeroY);
-  });
-  ctx.lineTo(pts[pts.length-1].x, zeroY);
-  ctx.lineTo(pts[0].x, zeroY);
-  ctx.closePath();
-  ctx.fill();
-
-  // Line
-  ctx.beginPath();
-  pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-  ctx.strokeStyle = '#059669';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Year labels
-  ctx.fillStyle = 'rgba(100,116,139,0.8)';
-  ctx.font = `${9 * dpr / dpr}px JetBrains Mono`;
-  ctx.textAlign = 'center';
-  [5, 10, 15, 20, 25].forEach(y => {
-    const x = pad.l + ((y-1) / (cumulative.length-1)) * cw;
-    ctx.fillText(y + (currentLang === 'ja' ? '年' : 'yr'), x, H - 4);
-  });
-
-  // Final label
-  const last = pts[pts.length-1];
-  ctx.fillStyle = '#059669';
-  ctx.font = `bold ${10 * dpr / dpr}px JetBrains Mono`;
-  ctx.textAlign = 'right';
-  ctx.fillText('+' + cumulative[24] + (currentLang === 'ja' ? '万円' : '¥10K'), last.x + 2, last.y - 5);
-}
-
-function renderCalcSteps(base, roi) {
-  const isJa = currentLang==='ja';
-  const city  = NEDO[base.cityKey]||NEDO.tokyo;
-  const avgSunny = (city.sunny.reduce((a,b)=>a+b,0)/12*100).toFixed(0);
-
-  const steps = isJa ? [
-    { label:'STEP 1 · NEDOデータ読込み',
-      formula:`METPV-20 ${base.cityKey} · 逐時日射量×12ヶ月×晴天率平均${avgSunny}%`,
-      result:`年間${SCENARIO_F.best>=1?'':''}データ取得完了`, cls:'' },
-    { label:'STEP 2 · 傾斜面日射量変換',
-      formula:`Perez簡易モデル · 傾斜${base.orientation==='flat'?5:10}° · 方位角補正×${base.orientFactor}`,
-      result:`実効日射量 算出`, cls:'' },
-    { label:'STEP 3 · 温度補正発電量',
-      formula:`セル温度補正（-0.35%/°C）· 年間平均気温考慮 · システム損失0.85`,
-      result:`${(base.annualKWh/1000).toFixed(1)}万 kWh / 年（平均年）`, cls:'highlight' },
-    { label:'STEP 4 · 設置費用（補助金前）',
-      formula:`¥${(COMPANIES[selectedCompany].pricePerKW/10000).toFixed(1)}万/kW × ${base.systemKW}kW`,
-      result:`¥${(roi.installCost/10000).toFixed(0)}万円`, cls:'' },
-    { label:'STEP 5 · 補助金控除',
-      formula:`国${SUBSIDY_DB.national.length}件 + 都道府県${(SUBSIDY_DB.pref[base.prefKey]||[]).length}件`,
-      result:`▲¥${(roi.totalSubsidy/10000).toFixed(0)}万 → 実質¥${(roi.netCost/10000).toFixed(0)}万`, cls:'green' },
-    { label:'STEP 6 · 年間経済効果',
-      formula:`自家消費70%×電気代¥30/kWh + 売電30%×¥12/kWh（劣化・電気代上昇考慮）`,
-      result:`¥${(roi.annualSavings/10000).toFixed(1)}万 / 年`, cls:'highlight' },
-    { label:'STEP 7 · 投資回収期間',
-      formula:`実質設置費用 ÷ 年間効果（維持費¥0.5万/kW/年控除）`,
-      result:`${roi.payback}年`, cls:'green' },
-  ] : [
-    { label:'STEP 1 · LOAD NEDO DATA',
-      formula:`METPV-20 ${base.cityKey} · Hourly irradiance × 12mo · Avg sunny ${avgSunny}%`,
-      result:`Hourly data loaded`, cls:'' },
-    { label:'STEP 2 · TILTED IRRADIANCE',
-      formula:`Perez model · Tilt ${base.orientation==='flat'?5:10}° · Orientation factor ×${base.orientFactor}`,
-      result:`POA irradiance calculated`, cls:'' },
-    { label:'STEP 3 · TEMP-CORRECTED OUTPUT',
-      formula:`Cell temp correction (-0.35%/°C) · Monthly avg temp · System loss 0.85`,
-      result:`${(base.annualKWh/1000).toFixed(1)}K kWh / yr (avg year)`, cls:'highlight' },
-    { label:'STEP 4 · INSTALL COST (gross)',
-      formula:`¥${(COMPANIES[selectedCompany].pricePerKW/10000).toFixed(1)}万/kW × ${base.systemKW}kW`,
-      result:`¥${(roi.installCost/10000).toFixed(0)}万`, cls:'' },
-    { label:'STEP 5 · SUBSIDIES DEDUCTED',
-      formula:`National ${SUBSIDY_DB.national.length} + Prefecture ${(SUBSIDY_DB.pref[base.prefKey]||[]).length} programs`,
-      result:`▲¥${(roi.totalSubsidy/10000).toFixed(0)}万 → Net ¥${(roi.netCost/10000).toFixed(0)}万`, cls:'green' },
-    { label:'STEP 6 · ANNUAL SAVINGS',
-      formula:`Self-use 70%×¥30/kWh + Export 30%×¥12/kWh (incl. degradation + tariff rise)`,
-      result:`¥${(roi.annualSavings/10000).toFixed(1)}万 / yr`, cls:'highlight' },
-    { label:'STEP 7 · PAYBACK PERIOD',
-      formula:`Net cost ÷ annual benefit (net of ¥0.5万/kW/yr O&M)`,
-      result:`${roi.payback} years`, cls:'green' },
-  ];
-
-  const container=document.getElementById('calcSteps');
-  container.innerHTML='';
-  steps.forEach((s,i)=>{
+function renderCoList() {
+  const c = document.getElementById('coList');
+  c.innerHTML='';
+  COMPANIES.forEach((co,i)=>{
+    const roi = curResults ? computeROI(curResults,i):null;
     const div=document.createElement('div');
-    div.className='calc-step'; div.style.animationDelay=(i*0.07)+'s';
+    div.className='co-item'+(i===selCo?' sel':'');
+    div.onclick=()=>{selCo=i;renderCoList();if(curResults)rerenderResults(curResults);};
     div.innerHTML=`
-      <div class="calc-step-line"><div class="calc-dot"></div><div class="calc-connector"></div></div>
-      <div class="calc-body">
-        <div class="calc-label">${s.label}</div>
-        <div class="calc-formula">${s.formula}</div>
-        <div class="calc-result ${s.cls}">${s.result}</div>
-      </div>`;
-    container.appendChild(div);
-  });
-}
-
-function renderFactors(base) {
-  const isJa = currentLang === 'ja';
-  const factors = [
-    { icon: '☀', name: isJa ? '年間日照時間' : 'Annual Sun Hours', detail: `${base.sunHours}h/日 · ${isJa ? '全国平均上位' : 'Above national avg'}`, score: Math.round((base.sunHours - 3.5) / 1.2 * 100), color: '#f59e0b' },
-    { icon: '🏙', name: isJa ? '遮蔽状況' : 'Shading Condition', detail: isJa ? `係数 ${base.shadingFactor}` : `Factor ${base.shadingFactor}`, score: Math.round(base.shadingFactor * 100), color: '#1e3a5f' },
-    { icon: '🧭', name: isJa ? '屋根の向き' : 'Roof Orientation', detail: isJa ? `係数 ${base.orientFactor}` : `Factor ${base.orientFactor}`, score: Math.round(base.orientFactor * 100), color: '#059669' },
-    { icon: '📐', name: isJa ? '屋上面積' : 'Roof Area', detail: `${Math.round(base.usableArea)}m² ${isJa ? '有効' : 'usable'}`, score: Math.min(Math.round(base.area / 20), 95), color: '#2d5f8a' },
-  ];
-
-  const container = document.getElementById('factorList');
-  container.innerHTML = '';
-  factors.forEach(f => {
-    const div = document.createElement('div');
-    div.className = 'factor-item';
-    div.innerHTML = `
-      <div class="factor-header">
-        <div class="factor-name">${f.icon} ${f.name}<span style="font-size:10px;color:var(--gray3);font-weight:400;margin-left:4px">${f.detail}</span></div>
-        <div class="factor-score">${f.score}</div>
-      </div>
-      <div class="factor-bar-bg">
-        <div class="factor-bar-fill" style="width:0;background:${f.color}" data-w="${f.score}"></div>
-      </div>
-    `;
-    container.appendChild(div);
-    setTimeout(() => { div.querySelector('.factor-bar-fill').style.width = f.score + '%'; }, 200);
-  });
-}
-
-function renderPanelGrid(panelCount) {
-  const grid = document.getElementById('panelGrid');
-  const displayCount = Math.min(panelCount, 200);
-  const cols = Math.ceil(Math.sqrt(displayCount * 1.5));
-
-  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
-  grid.innerHTML = '';
-
-  for (let i = 0; i < displayCount; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'solar-cell';
-    const heat = i / displayCount;
-    if (heat < 0.3) cell.style.background = 'rgba(245,158,11,0.4)';
-    else if (heat < 0.6) cell.style.background = '#1e3a5f';
-    else cell.style.background = '#162a45';
-    cell.style.animationDelay = (i * 0.005) + 's';
-    grid.appendChild(cell);
-  }
-
-  // Fill remaining spaces
-  const total = cols * Math.ceil(displayCount / cols);
-  for (let i = displayCount; i < total; i++) {
-    const cell = document.createElement('div');
-    cell.className = 'solar-cell';
-    cell.style.background = '#374151';
-    grid.appendChild(cell);
-  }
-}
-
-// ============================================================
-// BATTERY STORAGE MODULE
-// ============================================================
-
-const BATTERY_MAKERS = [
-  { id:0, name:'テスラ Powerpack', nameEn:'Tesla Powerpack',   color:'#dc2626', pricePerKWh:130000, cycleLife:6000, warranty:15, efficiency:0.92, note:'産業用定番' },
-  { id:1, name:'パナソニック創蓄連携', nameEn:'Panasonic ENERES',color:'#2563eb', pricePerKWh:115000, cycleLife:6000, warranty:15, efficiency:0.93, note:'国産・高信頼' },
-  { id:2, name:'PowerX Cube',       nameEn:'PowerX Cube',      color:'#059669', pricePerKWh: 95000, cycleLife:8000, warranty:20, efficiency:0.94, note:'国産新興・大容量' },
-];
-
-// 工事費（蓄電池容量に依存）
-function batteryInstallCost(kWh) {
-  // 電気工事 + 基礎工事 + 試運転
-  // 小規模 (<50kWh): 固定100万 + 5千/kWh
-  // 中規模 (50-200kWh): 固定200万 + 3千/kWh
-  // 大規模 (>200kWh): 固定350万 + 2千/kWh
-  if (kWh < 50)  return 1000000 + kWh * 5000;
-  if (kWh < 200) return 2000000 + kWh * 3000;
-  return 3500000 + kWh * 2000;
-}
-
-// 補助金（蓄電池）
-function batterySubsidy(kWh, installTotal) {
-  // ストレージパリティ補助金：上限1/3
-  const national = Math.min(installTotal * 0.33, kWh * 40000);
-  return Math.round(national);
-}
-
-// 推奨容量計算
-function recommendedBatteryCap(annualKWh) {
-  // 1日平均発電量の60%（昼間使い切れない余剰分）× 1.2バッファ
-  const daily = annualKWh / 365;
-  const surplus = daily * 0.60;
-  return Math.round(surplus * 1.2 / 10) * 10; // 10kWh単位で丸め
-}
-
-let batteryEnabled = false;
-let selectedBatteryMaker = 0;
-
-function toggleBattery() {
-  batteryEnabled = !batteryEnabled;
-  const toggle = document.getElementById('batteryToggle');
-  const config  = document.getElementById('batteryConfig');
-  toggle.classList.toggle('active', batteryEnabled);
-  config.classList.toggle('show', batteryEnabled);
-
-  if (batteryEnabled && currentResults) {
-    const rec = recommendedBatteryCap(currentResults.annualKWh);
-    document.getElementById('batteryCap').value = Math.min(rec, 500);
-    document.getElementById('batteryCapVal').textContent = Math.min(rec, 500) + 'kWh';
-    updateBatteryRecBadge(rec);
-    renderBatteryMakers();
-  }
-
-  document.getElementById('batterySection').style.display = batteryEnabled ? 'block' : 'none';
-  if (batteryEnabled && currentResults) renderBatterySection(currentResults);
-}
-
-function onBatteryCapChange(val) {
-  document.getElementById('batteryCapVal').textContent = val + 'kWh';
-  if (currentResults) renderBatterySection(currentResults);
-}
-
-function updateBatteryRecBadge(rec) {
-  const isJa = currentLang === 'ja';
-  document.getElementById('batteryRecBadge').innerHTML =
-    `🎯 ${isJa ? `推奨容量 <strong>${rec}kWh</strong>（1日余剰発電量ベース）` : `Recommended <strong>${rec}kWh</strong> (based on daily surplus)`}`;
-}
-
-function renderBatteryMakers() {
-  const container = document.getElementById('batteryMakerList');
-  container.innerHTML = '';
-  BATTERY_MAKERS.forEach((m, i) => {
-    const cap = parseInt(document.getElementById('batteryCap').value) || 100;
-    const total = cap * m.pricePerKWh + batteryInstallCost(cap);
-    const card = document.createElement('div');
-    card.className = 'battery-maker-card' + (i === selectedBatteryMaker ? ' selected' : '');
-    card.onclick = () => { selectedBatteryMaker = i; renderBatteryMakers(); if (currentResults) renderBatterySection(currentResults); };
-    const isJa = currentLang === 'ja';
-    card.innerHTML = `
-      <div class="battery-maker-dot" style="background:${m.color}"></div>
-      <div class="battery-maker-info">
-        <div class="battery-maker-name">${isJa ? m.name : m.nameEn}</div>
-        <div class="battery-maker-spec">${m.efficiency*100}%効率 · ${m.cycleLife.toLocaleString()}cy · 保証${m.warranty}年 · ${m.note}</div>
-      </div>
-      <div class="battery-maker-price">¥${(total/10000).toFixed(0)}万</div>
-    `;
-    container.appendChild(card);
-  });
-}
-
-function renderBatterySection(base) {
-  if (!batteryEnabled) return;
-  const cap  = parseInt(document.getElementById('batteryCap').value) || 100;
-  const maker = BATTERY_MAKERS[selectedBatteryMaker];
-  const isJa = currentLang === 'ja';
-
-  // --- 財務計算 ---
-  // Solar only
-  const roiSolar = computeROI(base, selectedCompany);
-
-  // Solar + Battery: 自家消費率が向上
-  const selfRateWith = Math.min(0.92, 0.70 + cap / (base.annualKWh / 365 * 10));
-  const battHardware = Math.round(cap * maker.pricePerKWh);
-  const battInstall  = batteryInstallCost(cap);
-  const battGross    = battHardware + battInstall;
-  const battSubsidyAmt = batterySubsidy(cap, battGross);
-  const battNet      = battGross - battSubsidyAmt;
-  const totalNetCost = roiSolar.netCost + battNet;
-
-  // 年間効果（蓄電池あり）
-  const annualKWh   = base.annualKWh;
-  const elecRate    = 30;
-  const fitRate     = 12;
-  const annualBenefit = Math.round(annualKWh * selfRateWith * elecRate + annualKWh * (1-selfRateWith) * fitRate);
-  const annualExtra  = annualBenefit - roiSolar.annualSavings;
-
-  // 25年CF with battery
-  const cumBatt = [];
-  let runBatt = -totalNetCost;
-  let paybackBatt = null;
-  for (let y=1;y<=25;y++) {
-    const deg = Math.pow(0.9945,y);
-    const gen = annualKWh*deg;
-    const elecY = elecRate*Math.pow(1.03,y);
-    const benefit = Math.round(gen*selfRateWith*elecY + gen*(1-selfRateWith)*fitRate);
-    const maint   = Math.round(base.systemKW*5000 + cap*3000); // 蓄電池維持費3千/kWh/年
-    runBatt += benefit-maint;
-    if (paybackBatt===null&&runBatt>=0) paybackBatt=y;
-    cumBatt.push(Math.round(runBatt/10000));
-  }
-
-  // --- Compare cards ---
-  const compareEl = document.getElementById('batteryCompare');
-  compareEl.innerHTML = `
-    <div class="compare-col solar-only">
-      <div class="compare-col-title">☀ <span>${isJa?'太陽光のみ':'Solar Only'}</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'自家消費率':'Self-use rate'}</span><span class="compare-stat-value">70%</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'年間効果':'Annual benefit'}</span><span class="compare-stat-value">¥${(roiSolar.annualSavings/10000).toFixed(1)}万</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'初期費用（補助後）':'Net cost'}</span><span class="compare-stat-value">¥${(roiSolar.netCost/10000).toFixed(0)}万</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'回収年数':'Payback'}</span><span class="compare-stat-value">${roiSolar.payback}${isJa?'年':'yr'}</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'25年利益':'25yr profit'}</span><span class="compare-stat-value">+${roiSolar.cum[24]}万</span></div>
-    </div>
-    <div class="compare-col solar-battery">
-      <div class="compare-col-title">🔋 <span>${isJa?'太陽光+蓄電池':'Solar + Battery'}</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'自家消費率':'Self-use rate'}</span><span class="compare-stat-value better">${Math.round(selfRateWith*100)}%</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'年間効果':'Annual benefit'}</span><span class="compare-stat-value better">¥${(annualBenefit/10000).toFixed(1)}万 <small style="color:var(--green);font-size:9px">+${(annualExtra/10000).toFixed(1)}万</small></span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'初期費用（補助後）':'Net cost'}</span><span class="compare-stat-value">¥${(totalNetCost/10000).toFixed(0)}万</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'回収年数':'Payback'}</span><span class="compare-stat-value better">${paybackBatt||'>25'}${isJa?'年':'yr'}</span></div>
-      <div class="compare-stat"><span class="compare-stat-label">${isJa?'25年利益':'25yr profit'}</span><span class="compare-stat-value better">${cumBatt[24]>=0?'+':''}${cumBatt[24]}万</span></div>
-    </div>
-  `;
-
-  // --- Charge flow diagram ---
-  const dailyGen  = Math.round(annualKWh/365);
-  const selfUse   = Math.round(dailyGen*selfRateWith);
-  const charged   = Math.round(Math.min(dailyGen*(selfRateWith-0.70), cap*0.8));
-  const discharge = Math.round(charged*maker.efficiency);
-  const sold      = Math.round(dailyGen*(1-selfRateWith));
-  const flowEl    = document.getElementById('chargeFlow');
-  const flowData  = [
-    { icon:'☀', bg:'#fef3c7', label:'SOLAR',    value:`${dailyGen}kWh/日` },
-    null,
-    { icon:'🏢', bg:'#e8f4fd', label:'SELF-USE', value:`${selfUse}kWh` },
-    null,
-    { icon:'🔋', bg:'#d1fae5', label:`BATTERY\n${cap}kWh`, value:`充${charged}→放${discharge}kWh` },
-    null,
-    { icon:'⚡', bg:'#f3e8ff', label:'GRID',     value:`売電${sold}kWh` },
-  ];
-  flowEl.innerHTML = '';
-  flowData.forEach(n => {
-    if (!n) {
-      const arr = document.createElement('div');
-      arr.className = 'flow-arrow';
-      flowEl.appendChild(arr);
-    } else {
-      const node = document.createElement('div');
-      node.className = 'flow-node';
-      node.innerHTML = `
-        <div class="flow-icon" style="background:${n.bg}">${n.icon}</div>
-        <div class="flow-label">${n.label.replace('\n','<br>')}</div>
-        <div class="flow-value">${n.value}</div>
-      `;
-      flowEl.appendChild(node);
-    }
-  });
-
-  // --- Hourly chart (summer representative day) ---
-  // 典型的な夏の日のプロファイル（7月東京）
-  const genProfile  = [0,0,0,0,0,0.05,0.18,0.42,0.68,0.88,1.00,1.05,1.02,0.92,0.78,0.58,0.33,0.12,0.02,0,0,0,0,0];
-  const consProfile = [0.3,0.25,0.22,0.20,0.20,0.22,0.28,0.32,0.30,0.28,0.30,0.32,0.35,0.30,0.28,0.30,0.42,0.55,0.60,0.55,0.50,0.45,0.40,0.35];
-  const maxGen = dailyGen * 1.2 / 24; // kW per hour reference
-
-  const chartEl   = document.getElementById('hourlyChart');
-  const xAxisEl   = document.getElementById('hourlyXAxis');
-  chartEl.innerHTML = '';
-  xAxisEl.innerHTML = '';
-
-  let battSoC = cap * 0.3; // 初期SOC 30%
-  for (let h=0;h<24;h++) {
-    const gen  = genProfile[h]  * dailyGen / 12;
-    const cons = consProfile[h] * dailyGen / 16;
-    let charge = 0, discharge2 = 0;
-
-    if (gen > cons) {
-      charge = Math.min(gen-cons, cap-battSoC, cap*0.2);
-      battSoC = Math.min(battSoC+charge, cap);
-    } else {
-      discharge2 = Math.min(cons-gen, battSoC*maker.efficiency, cap*0.2);
-      battSoC = Math.max(0, battSoC-discharge2/maker.efficiency);
-    }
-
-    const maxH = dailyGen/12;
-    const bars = [
-      { val:gen,        color:'#f59e0b', tip:`発電 ${gen.toFixed(1)}kWh` },
-      { val:cons,       color:'#1e3a5f', tip:`消費 ${cons.toFixed(1)}kWh` },
-      { val:charge,     color:'#059669', tip:`充電 ${charge.toFixed(1)}kWh` },
-      { val:discharge2, color:'#7c3aed', tip:`放電 ${discharge2.toFixed(1)}kWh` },
-    ];
-
-    const col = document.createElement('div');
-    col.style.cssText = 'display:flex;flex-direction:column-reverse;align-items:center;gap:1px;height:100%;justify-content:flex-start;';
-    bars.forEach(b => {
-      if (b.val < 0.01) return;
-      const pct = Math.min(b.val/maxH, 1);
-      const bar = document.createElement('div');
-      bar.style.cssText = `width:100%;height:${Math.round(pct*60)}px;background:${b.color};border-radius:2px 2px 0 0;`;
-      bar.setAttribute('data-tip', b.tip);
-      bar.className = 'hourly-bar';
-      col.appendChild(bar);
-    });
-    chartEl.appendChild(col);
-
-    const xLabel = document.createElement('div');
-    xLabel.className = 'hourly-xlabel';
-    xLabel.textContent = h%6===0 ? h+'h' : '';
-    xAxisEl.appendChild(xLabel);
-  }
-
-  // --- Cost breakdown ---
-  const costEl = document.getElementById('batteryCostBreakdown');
-  costEl.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px">
-      <div style="padding:12px;background:var(--gray);border-radius:8px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);letter-spacing:1px;margin-bottom:6px">${isJa?'蓄電池費用内訳':'BATTERY COST BREAKDOWN'}</div>
-        <div style="font-size:11px;color:var(--ink2);margin-bottom:3px">${isJa?'本体':'Hardware'}: ¥${(battHardware/10000).toFixed(0)}万</div>
-        <div style="font-size:11px;color:var(--ink2);margin-bottom:3px">${isJa?'設置・電気工事':'Install'}: ¥${(battInstall/10000).toFixed(0)}万</div>
-        <div style="font-size:11px;color:var(--green);margin-bottom:3px">▲${isJa?'補助金':'Subsidy'}: ¥${(battSubsidyAmt/10000).toFixed(0)}万</div>
-        <div style="font-family:'DM Serif Display',serif;font-size:18px;color:var(--ink);border-top:1px solid var(--gray2);padding-top:6px;margin-top:4px">¥${(battNet/10000).toFixed(0)}万</div>
-        <div style="font-size:9px;color:var(--gray3)">${isJa?'実質負担額':'Net cost'}</div>
-      </div>
-      <div style="padding:12px;background:rgba(5,150,105,0.06);border:1px solid rgba(5,150,105,0.2);border-radius:8px">
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--green);letter-spacing:1px;margin-bottom:6px">${isJa?'蓄電池追加効果':'BATTERY ADDED VALUE'}</div>
-        <div style="font-size:11px;color:var(--ink2);margin-bottom:3px">${isJa?'年間追加効果':'Extra annual'}: +¥${(annualExtra/10000).toFixed(1)}万</div>
-        <div style="font-size:11px;color:var(--ink2);margin-bottom:3px">${isJa?'容量':'Capacity'}: ${cap}kWh</div>
-        <div style="font-size:11px;color:var(--ink2);margin-bottom:3px">${isJa?'サイクル寿命':'Cycle life'}: ${maker.cycleLife.toLocaleString()}回</div>
-        <div style="font-size:11px;color:var(--ink2);margin-bottom:3px">${isJa?'充放電効率':'Efficiency'}: ${maker.efficiency*100}%</div>
-        <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3);margin-top:6px">${isJa?`停電時バックアップ: 約${Math.round(cap*maker.efficiency/3)}h確保`:`Backup: ~${Math.round(cap*maker.efficiency/3)}h coverage`}</div>
-      </div>
-    </div>
-  `;
-
-  // Update battery makers list
-  renderBatteryMakers();
-}
-
-// Hook battery render into main results render
-const _origRerenderResults = rerenderResults;
-// (rerenderResults already calls all render functions; battery is triggered by toggle)
-
-// ===== MODAL =====
-function showModal() { document.getElementById('modalOverlay').classList.add('show'); }
-function hideModal() {
-  document.getElementById('modalOverlay').classList.remove('show');
-  document.getElementById('modalForm').style.display = '';
-  document.getElementById('modalSuccess').classList.remove('show');
-}
-function handleModalClick(e) { if (e.target === e.currentTarget) hideModal(); }
-
-function submitLead() {
-  const name = document.getElementById('m_name').value;
-  const phone = document.getElementById('m_phone').value;
-  if (!name || !phone) {
-    alert(currentLang === 'ja' ? '名前と電話番号を入力してください' : 'Please enter name and phone number');
-    return;
-  }
-  document.getElementById('modalForm').style.display = 'none';
-  document.getElementById('modalSuccess').classList.add('show');
-  // TODO: POST to backend
-  console.log('Lead captured:', { name, phone, address: document.getElementById('addressInput').value, results: currentResults });
-}
-
-// ============================================================
-// DATA LAYERS — GeoTIFF 視覚化エンジン
-// Google Solar API DataLayers endpoint + geotiff.js + plotty
-// ============================================================
-
-let dataLayersCache = null;      // DataLayers APIレスポンスキャッシュ
-let activeOverlay   = null;      // 現在のGeoTIFFオーバーレイ
-let hourlyShadeUrls = [];        // 時刻別シェードURL（8760枚）
-let currentHourIdx  = 12;        // 現在の時刻インデックス
-
-// DataLayers APIを呼び出す
-async function fetchDataLayers(lat, lng) {
-  const url = `https://solar.googleapis.com/v1/dataLayers:get`
-    + `?location.latitude=${lat}&location.longitude=${lng}`
-    + `&radiusMeters=50&view=FULL_LAYERS&requiredQuality=HIGH`
-    + `&key=${GOOGLE_API_KEY}`;
-  try {
-    const res  = await fetch(url);
-    const data = await res.json();
-    if (data.error) { console.warn('DataLayers error:', data.error.message); return null; }
-    return data;
-  } catch(e) {
-    console.warn('DataLayers fetch error:', e);
-    return null;
-  }
-}
-
-// GeoTIFFをfetchしてArrayBufferで返す
-async function fetchGeoTiff(url) {
-  const res = await fetch(url + `&key=${GOOGLE_API_KEY}`);
-  return await res.arrayBuffer();
-}
-
-// GeoTIFFをGeotiff.jsで読み込んでピクセルデータを返す
-async function readGeoTiff(arrayBuffer) {
-  const tiff  = await GeoTIFF.fromArrayBuffer(arrayBuffer);
-  const image = await tiff.getImage();
-  const bbox  = image.getBoundingBox();   // [west, south, east, north]
-  const data  = await image.readRasters();
-  return {
-    width:  image.getWidth(),
-    height: image.getHeight(),
-    bbox,
-    data,   // data[0] = 第1バンド（float32配列）
-  };
-}
-
-// Google Maps上にGeoTIFFオーバーレイを描画
-async function renderGeoTiffOverlay(tiffUrl, colorScale, minVal, maxVal, opacity = 0.7) {
-  if (!gmap) return;
-
-  // 古いオーバーレイを削除
-  if (activeOverlay) { activeOverlay.setMap(null); activeOverlay = null; }
-
-  try {
-    const ab   = await fetchGeoTiff(tiffUrl);
-    const geo  = await readGeoTiff(ab);
-    const [west, south, east, north] = geo.bbox;
-
-    // plottyでカラーマップ描画
-    const canvas = document.createElement('canvas');
-    canvas.width  = geo.width;
-    canvas.height = geo.height;
-
-    const plot = new plotty.plot({
-      canvas,
-      data:     geo.data[0],
-      width:    geo.width,
-      height:   geo.height,
-      domain:   [minVal, maxVal],
-      colorScale,
-      clampLow:  true,
-      clampHigh: true,
-    });
-    plot.render();
-
-    // Google Maps GroundOverlay として追加
-    const bounds = new google.maps.LatLngBounds(
-      new google.maps.LatLng(south, west),
-      new google.maps.LatLng(north, east),
-    );
-
-    // canvasをDataURLに変換
-    const dataUrl = canvas.toDataURL('image/png');
-
-    activeOverlay = new google.maps.GroundOverlay(dataUrl, bounds, {
-      opacity,
-      clickable: false,
-    });
-    activeOverlay.setMap(gmap);
-
-    // 地図を対象エリアにフィット
-    gmap.fitBounds(bounds);
-
-    return geo;
-  } catch(e) {
-    console.warn('GeoTIFF render error:', e);
-    return null;
-  }
-}
-
-// 年間日照量ヒートマップ（annualFlux）
-async function showAnnualFlux(lat, lng) {
-  showMapLoading(true, currentLang === 'ja' ? '年間日照データを取得中...' : 'Loading annual flux...');
-
-  if (!dataLayersCache) {
-    dataLayersCache = await fetchDataLayers(lat, lng);
-  }
-
-  if (!dataLayersCache?.annualFluxUrl) {
-    showMapLoading(false);
-    // フォールバック：従来のポリゴン描画
-    drawSolarOverlay(lat, lng, solarData, 'annual');
-    return;
-  }
-
-  showMapLoading(false);
-  // jet カラーマップ（青→緑→黄→赤）で年間日照量を表示
-  await renderGeoTiffOverlay(dataLayersCache.annualFluxUrl, 'jet', 0, 1800, 0.75);
-  addColorScaleLegend('annual');
-}
-
-// 時刻別日照シミュレーション（hourlyShade）
-async function showHourlyShade(lat, lng, hourOfDay) {
-  if (!dataLayersCache) {
-    showMapLoading(true, currentLang === 'ja' ? '日照データを取得中...' : 'Loading shade data...');
-    dataLayersCache = await fetchDataLayers(lat, lng);
-    showMapLoading(false);
-  }
-
-  if (!dataLayersCache?.hourlyShadeUrls?.length) {
-    drawSolarOverlay(lat, lng, solarData, 'shadow');
-    return;
-  }
-
-  // hourlyShadeUrls は月×時 = 12×24 = 288枚
-  // インデックス: month * 24 + hour
-  const now   = new Date();
-  const month = now.getMonth(); // 0-11
-  const idx   = Math.min(month * 24 + Math.floor(hourOfDay), dataLayersCache.hourlyShadeUrls.length - 1);
-
-  showMapLoading(true, currentLang === 'ja' ? `${Math.floor(hourOfDay)}時の影を描画中...` : `Rendering ${Math.floor(hourOfDay)}:00 shadow...`);
-  // greys: 影あり=黒, 影なし=白（反転して使う）
-  await renderGeoTiffOverlay(dataLayersCache.hourlyShadeUrls[idx], 'greys', 0, 1, 0.55);
-  showMapLoading(false);
-  addColorScaleLegend('shadow');
-}
-
-// 月別日照量（monthlyFlux）
-async function showMonthlyFlux(lat, lng, month) {
-  if (!dataLayersCache) {
-    showMapLoading(true);
-    dataLayersCache = await fetchDataLayers(lat, lng);
-    showMapLoading(false);
-  }
-  if (!dataLayersCache?.monthlyFluxUrl) {
-    drawSolarOverlay(lat, lng, solarData, 'annual');
-    return;
-  }
-  showMapLoading(true, currentLang === 'ja' ? `${month+1}月の日照量を表示中...` : `Loading ${month+1} month flux...`);
-  await renderGeoTiffOverlay(dataLayersCache.monthlyFluxUrl, 'jet', 0, 200, 0.75);
-  showMapLoading(false);
-  addColorScaleLegend('monthly');
-}
-
-// RGB衛星画像（rgbUrl）をオーバーレイ
-async function showRGBLayer(lat, lng) {
-  if (!dataLayersCache) {
-    showMapLoading(true);
-    dataLayersCache = await fetchDataLayers(lat, lng);
-    showMapLoading(false);
-  }
-  if (!dataLayersCache?.rgbUrl) return;
-
-  if (activeOverlay) { activeOverlay.setMap(null); activeOverlay = null; }
-  const ab  = await fetchGeoTiff(dataLayersCache.rgbUrl);
-  const geo = await readGeoTiff(ab);
-  const [west, south, east, north] = geo.bbox;
-
-  // RGBは3バンド — CanvasにRGBAで描画
-  const canvas = document.createElement('canvas');
-  canvas.width  = geo.width;
-  canvas.height = geo.height;
-  const ctx     = canvas.getContext('2d');
-  const imgData = ctx.createImageData(geo.width, geo.height);
-
-  const r = geo.data[0], g = geo.data[1], b = geo.data[2];
-  for (let i = 0; i < geo.width * geo.height; i++) {
-    imgData.data[i*4]   = r[i];
-    imgData.data[i*4+1] = g[i];
-    imgData.data[i*4+2] = b[i];
-    imgData.data[i*4+3] = 255;
-  }
-  ctx.putImageData(imgData, 0, 0);
-
-  const bounds = new google.maps.LatLngBounds(
-    new google.maps.LatLng(south, west),
-    new google.maps.LatLng(north, east),
-  );
-  activeOverlay = new google.maps.GroundOverlay(canvas.toDataURL(), bounds, { opacity: 1, clickable: false });
-  activeOverlay.setMap(gmap);
-  gmap.fitBounds(bounds);
-}
-
-// カラースケール凡例を表示
-function addColorScaleLegend(type) {
-  let legend = document.getElementById('colorLegend');
-  if (!legend) {
-    legend = document.createElement('div');
-    legend.id = 'colorLegend';
-    legend.style.cssText = `
-      position:absolute;bottom:56px;right:12px;z-index:10;
-      background:rgba(10,22,40,0.85);backdrop-filter:blur(8px);
-      border-radius:8px;padding:10px 14px;
-      font-family:'JetBrains Mono',monospace;font-size:10px;
-    `;
-    document.querySelector('.map-container').appendChild(legend);
-  }
-
-  const configs = {
-    annual:  { label: currentLang==='ja' ? '年間日照量 (kWh/kW)' : 'Annual flux (kWh/kW)', min:'0', max:'1800+', colors:['#00008B','#0000FF','#00FFFF','#00FF00','#FFFF00','#FF0000'] },
-    shadow:  { label: currentLang==='ja' ? '影 (暗=影あり)' : 'Shade (dark=shaded)',      min: currentLang==='ja'?'影あり':'shaded', max: currentLang==='ja'?'日当たり':'sunny', colors:['#111','#555','#999','#ccc','#fff'] },
-    monthly: { label: currentLang==='ja' ? '月間日照量 (kWh/kW)' : 'Monthly flux (kWh/kW)', min:'0', max:'200+', colors:['#00008B','#0000FF','#00FFFF','#00FF00','#FFFF00','#FF0000'] },
-  };
-
-  const cfg = configs[type] || configs.annual;
-  const gradient = cfg.colors.join(',');
-
-  legend.innerHTML = `
-    <div style="color:rgba(255,255,255,0.6);letter-spacing:1px;margin-bottom:6px">${cfg.label}</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span style="color:rgba(255,255,255,0.5);font-size:9px">${cfg.min}</span>
-      <div style="flex:1;height:8px;border-radius:4px;background:linear-gradient(90deg,${gradient})"></div>
-      <span style="color:rgba(255,255,255,0.5);font-size:9px">${cfg.max}</span>
-    </div>
-  `;
-}
-
-// 地図ローディング表示
-function showMapLoading(show, msg) {
-  const overlay = document.getElementById('loadingOverlay');
-  if (!overlay) return;
-  overlay.classList.toggle('show', show);
-  if (msg && show) {
-    const step = overlay.querySelector('.loading-step');
-    if (step) step.textContent = msg;
-  }
-}
-
-// ============================================================
-// setView を DataLayers 対応に更新
-// ============================================================
-
-// ビュー切替
-function setView(v) {
-  mapView = v;
-  ['btnPanels','btnShadow','btnAnnual'].forEach(id => {
-    const btn = document.getElementById(id);
-    if (btn) btn.classList.toggle('active',
-      id === 'btn' + v.charAt(0).toUpperCase() + v.slice(1));
-  });
-
-  const sliderPanel = document.getElementById('sunSliderPanel');
-  if (sliderPanel) sliderPanel.style.display = v === 'shadow' ? 'block' : 'none';
-
-  // 凡例を非表示（ビュー切替時）
-  const legend = document.getElementById('colorLegend');
-  if (legend) legend.remove();
-
-  // activeOverlayをリセット
-  if (activeOverlay && v === 'panels') {
-    activeOverlay.setMap(null);
-    activeOverlay = null;
-  }
-
-  if (!currentResults || !gmap) return;
-  const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
-  const lat  = currentResults._lat || city.lat;
-  const lng  = currentResults._lng || city.lng;
-
-  if (v === 'panels') {
-    // パネル配置：BuildingInsightsのポリゴン
-    clearMapOverlays();
-    drawSolarOverlay(lat, lng, solarData, 'panels');
-
-  } else if (v === 'annual') {
-    // 年間日照量：DataLayers annualFlux GeoTIFF
-    clearMapOverlays();
-    showAnnualFlux(lat, lng);
-
-  } else if (v === 'shadow') {
-    // 日照シミュレーション：DataLayers hourlyShade
-    clearMapOverlays();
-    const hour = parseFloat(document.getElementById('sunTimeSlider')?.value || 12);
-    showHourlyShade(lat, lng, hour);
-    onSunTimeChange(hour);
-  }
-}
-
-// 太陽時刻スライダー変更（DataLayers版）
-function onSunTimeChange(val) {
-  const hour = parseFloat(val);
-  const h = Math.floor(hour);
-  const m = Math.round((hour - h) * 60);
-  const label = document.getElementById('sunTimeLabel');
-  if (label) label.textContent = String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0');
-
-  if (!currentResults) return;
-  const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
-  const lat  = currentResults._lat || city.lat;
-
-  // 太陽位置計算
-  const decl   = solarDecl(182);
-  const alt    = solarAlt(lat, decl, hour);
-  const altDeg = Math.max(0, alt * 180 / Math.PI);
-  const ha     = (hour - 12) * 15;
-  const azimuth = 180 + ha * 0.85;
-  const sinAlt = Math.sin(Math.max(0, alt));
-  const eff    = altDeg < 5 ? 0 : Math.round(sinAlt * 100);
-
-  const altEl = document.getElementById('sunAltDisplay');
-  const azEl  = document.getElementById('sunAzDisplay');
-  const effEl = document.getElementById('sunEffDisplay');
-  if (altEl) altEl.textContent = altDeg.toFixed(1) + '°';
-  if (azEl)  azEl.textContent  = azimuth.toFixed(0) + '°';
-  if (effEl) effEl.textContent = eff + '%';
-
-  // DataLayersがあれば時刻別シェードを更新、なければポリゴン色更新
-  if (dataLayersCache?.hourlyShadeUrls?.length && mapView === 'shadow') {
-    const city2 = NEDO[currentResults?.cityKey] || NEDO.tokyo;
-    const lng = currentResults?._lng || city2.lng;
-    showHourlyShade(lat, lng, hour);
-  } else {
-    updatePanelsByTime(altDeg, eff);
-  }
-}
-
-// 地図リドロー
-function redrawMap() {
-  if (currentResults && gmap) {
-    const city = NEDO[currentResults.cityKey] || NEDO.tokyo;
-    drawSolarOverlay(currentResults._lat || city.lat, currentResults._lng || city.lng, solarData, mapView);
-  }
-}
-
-// Window resize
-window.addEventListener('resize', () => {
-  syncOverlayCanvas();
-});
-</script>
-
-<!-- GeoTIFF + Plotty for DataLayers visualization -->
-<script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/plotty@0.4.9/dist/plotty.min.js"></script>
-
-<!-- Google Maps API — bodyの最後でロード（DOMとJSが先に確定してから） -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=places,geocoding&callback=initGoogleMap&loading=async" async defer></script>
-</body>
-</html>
