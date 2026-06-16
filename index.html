@@ -287,12 +287,12 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;heigh
 .m-ok-desc{font-size:12px;color:var(--gray3);line-height:1.6;}
 
 /* i18n */
-.ja,.en{display:none;}
-body.ja .ja{display:inline;}
-body.en .en{display:inline;}
+span.ja,span.en{display:none;}
+body.ja span.ja{display:inline;}
+body.en span.en{display:inline;}
+.ja-b,.en-b{display:none;}
 body.ja .ja-b{display:block;}
 body.en .en-b{display:block;}
-.ja-b,.en-b{display:none;}
 
 @media(max-width:900px){
   .app{grid-template-columns:1fr;}
@@ -368,9 +368,9 @@ body.en .en-b{display:block;}
       <div class="field">
         <label><span class="ja">周辺環境</span><span class="en">Surroundings</span></label>
         <select id="surroundings">
-          <option value="open"><span class="ja">開放的（遮蔽なし）</span><span class="en">Open</span></option>
-          <option value="partial" selected><span class="ja">一部遮蔽あり</span><span class="en">Partial shading</span></option>
-          <option value="dense"><span class="ja">高層ビル密集地</span><span class="en">Dense high-rises</span></option>
+          <option value="open" data-ja="開放的（遮蔽なし）" data-en="Open (no shading)">開放的（遮蔽なし）</option>
+          <option value="partial" selected data-ja="一部遮蔽あり" data-en="Partial shading">一部遮蔽あり</option>
+          <option value="dense" data-ja="高層ビル密集地" data-en="Dense high-rises">高層ビル密集地</option>
         </select>
       </div>
       <div class="field">
@@ -405,12 +405,12 @@ body.en .en-b{display:block;}
       <div class="field">
         <label><span class="ja">屋根の向き</span><span class="en">Orientation</span></label>
         <select id="orientation">
-          <option value="south"><span class="ja">南向き（最適）</span><span class="en">South (optimal)</span></option>
-          <option value="southeast"><span class="ja">南東向き</span><span class="en">Southeast</span></option>
-          <option value="southwest"><span class="ja">南西向き</span><span class="en">Southwest</span></option>
-          <option value="east"><span class="ja">東向き</span><span class="en">East</span></option>
-          <option value="west"><span class="ja">西向き</span><span class="en">West</span></option>
-          <option value="flat"><span class="ja">陸屋根（水平）</span><span class="en">Flat roof</span></option>
+          <option value="south" data-ja="南向き（最適）" data-en="South (optimal)">南向き（最適）</option>
+          <option value="southeast" data-ja="南東向き" data-en="Southeast">南東向き</option>
+          <option value="southwest" data-ja="南西向き" data-en="Southwest">南西向き</option>
+          <option value="east" data-ja="東向き" data-en="East">東向き</option>
+          <option value="west" data-ja="西向き" data-en="West">西向き</option>
+          <option value="flat" data-ja="陸屋根（水平）" data-en="Flat roof">陸屋根（水平）</option>
         </select>
       </div>
     </div>
@@ -729,6 +729,7 @@ function setLang(l) {
   lang = l;
   document.body.className = l;
   document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.textContent.trim() === (l==='ja'?'日本語':'English')));
+  document.querySelectorAll('option[data-ja]').forEach(o => { o.textContent = l==='ja'?o.dataset.ja:o.dataset.en; });
   if (curResults) rerenderResults(curResults);
 }
 
