@@ -2128,20 +2128,28 @@ function resetMapView() {
   }
 }
 
-// ジオコーディング：住所 → 緯度経度
+// ジオコーディング：Google Maps JS API の Geocoder を使用（ブラウザから直接呼べる）
 async function geocodeAddress(address) {
-  const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_API_KEY}&language=ja`;
-  try {
-    const res  = await fetch(url);
-    const data = await res.json();
-    if (data.status === 'OK' && data.results.length > 0) {
-      const loc = data.results[0].geometry.location;
-      return { lat: loc.lat, lng: loc.lng, formatted: data.results[0].formatted_address };
+  return new Promise((resolve) => {
+    if (!gmap || !google?.maps?.Geocoder) {
+      resolve(null);
+      return;
     }
-  } catch(e) {
-    console.warn('Geocode error:', e);
-  }
-  return null;
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: address, region: 'JP' }, (results, status) => {
+      if (status === 'OK' && results.length > 0) {
+        const loc = results[0].geometry.location;
+        resolve({
+          lat: loc.lat(),
+          lng: loc.lng(),
+          formatted: results[0].formatted_address,
+        });
+      } else {
+        console.warn('Geocode failed:', status);
+        resolve(null);
+      }
+    });
+  });
 }
 
 // Google Solar API 呼び出し
@@ -3408,6 +3416,6 @@ window.addEventListener('resize', () => {
 </script>
 
 <!-- Google Maps API — bodyの最後でロード（DOMとJSが先に確定してから） -->
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=places&callback=initGoogleMap&loading=async" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=places,geocoding&callback=initGoogleMap&loading=async" async defer></script>
 </body>
 </html>
