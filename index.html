@@ -801,55 +801,103 @@ function clearOverlays() {
 }
 
 // Draw panels
+// 緯度経度をメートル単位でオフセット（方位角考慮）
+function offsetLatLng(lat, lng, dxMeters, dyMeters) {
+  const dLat = dyMeters / 111320;
+  const dLng = dxMeters / (111320 * Math.cos(lat * Math.PI / 180));
+  return { lat: lat + dLat, lng: lng + dLng };
+}
+
+// パネル1枚の四隅を計算（中心・幅・高さ・方位角から）
+function panelCorners(centerLat, centerLng, widthM, heightM, azimuthDeg) {
+  const rad = azimuthDeg * Math.PI / 180;
+  const cos = Math.cos(rad), sin = Math.sin(rad);
+  const hw = widthM / 2, hh = heightM / 2;
+  // 4隅のローカル座標（回転前）
+  const local = [[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]];
+  return local.map(([x,y]) => {
+    // 方位角で回転
+    const rx = x * cos - y * sin;
+    const ry = x * sin + y * cos;
+    return offsetLatLng(centerLat, centerLng, rx, ry);
+  });
+}
+
 function drawPanels(lat, lng, apiData, mode) {
   clearOverlays();
   if (!gmap) return;
-  gmap.setCenter({lat, lng});
-  gmap.setZoom(19);
 
   const sp = apiData?.solarPotential;
-  const roofArea = sp?.maxArrayAreaMeters2 || parseFloat(document.getElementById('roofArea').value)||600;
   const panelCount = parseInt(document.getElementById('panelCount').value)||80;
   const panels = sp?.solarPanels || [];
 
   if (panels.length > 0) {
-    // Real panel positions from Solar API
+    // ===== Solar API実データ：本物のパネル位置・朝向 =====
+    // 建物中心に地図をフォーカス
+    const cLat = apiData.center?.latitude || lat;
+    const cLng = apiData.center?.longitude || lng;
+    gmap.setCenter({lat: cLat, lng: cLng});
+    gmap.setZoom(20);
+
+    const pw = sp.panelWidthMeters  || 1.045;
+    const ph = sp.panelHeightMeters || 1.879;
     const display = panels.slice(0, Math.min(panelCount, panels.length));
-    display.forEach((p, idx) => {
-      const dLat=0.000009, dLng=0.0000125;
-      const pLat=p.center.latitude, pLng=p.center.longitude;
+
+    display.forEach((p) => {
+      const pLat = p.center.latitude;
+      const pLng = p.center.longitude;
+      // Solar APIの実際の方位角（orientation: 0=縦, 90=横）
+      const orientation = p.orientation === 'LANDSCAPE' ? 90 : 0;
+      const az = orientation;
+      const corners = panelCorners(pLat, pLng, pw, ph, az);
+
       let fill;
       if (mode==='annual') {
-        const ratio = Math.min((p.yearlyEnergyDcKwh||0)/600,1);
-        fill = `rgb(${Math.round(245*ratio)},${Math.round(100*ratio)},11)`;
+        const ratio = Math.min((p.yearlyEnergyDcKwh||0)/(sp.maxSunshineHoursPerYear?550:450),1);
+        // 青→緑→黄→赤のヒートマップ
+        fill = fluxColor(ratio);
       } else {
-        fill = '#1a3a6a';
+        fill = '#1c3d6b';
       }
       const poly = new google.maps.Polygon({
-        paths:[{lat:pLat-dLat,lng:pLng-dLng},{lat:pLat-dLat,lng:pLng+dLng},{lat:pLat+dLat,lng:pLng+dLng},{lat:pLat+dLat,lng:pLng-dLng}],
-        strokeColor:'#4a8fd4',strokeOpacity:.5,strokeWeight:.5,
-        fillColor:fill,fillOpacity:.82,
+        paths: corners,
+        strokeColor:'#5ba3e0', strokeOpacity:.7, strokeWeight:.6,
+        fillColor:fill, fillOpacity:.88,
       });
       poly.setMap(gmap);
       panelOverlays.push(poly);
     });
+
   } else {
-    // Estimated grid
-    const side = Math.sqrt(roofArea);
-    const cols = Math.ceil(Math.sqrt(panelCount*1.5));
-    const rows = Math.ceil(panelCount/cols);
-    const dLat=0.000017*(side/20), dLng=0.000024*(side/20);
-    const sLat=lat-(rows/2)*dLat, sLng=lng-(cols/2)*dLng;
-    let cnt=0;
-    for (let r=0;r<rows&&cnt<panelCount;r++) {
-      for (let c=0;c<cols&&cnt<panelCount;c++) {
-        const pLat=sLat+r*dLat, pLng=sLng+c*dLng;
-        const dL=dLat*.44, dG=dLng*.44;
-        let fill = mode==='annual' ? `rgba(${Math.round(245*(1-cnt/panelCount*.4))},${Math.round(100*(1-cnt/panelCount*.3))},11)` : '#1a3a6a';
+    // ===== フォールバック：屋根中心に整然とグリッド配置 =====
+    gmap.setCenter({lat, lng});
+    gmap.setZoom(20);
+    const roofArea = parseFloat(document.getElementById('roofArea').value)||600;
+    const coverage = parseInt(document.getElementById('coverage').value)/100;
+    const usableArea = roofArea * coverage;
+    // パネル1枚 約1.05m×1.88m = 約2m²
+    const pw = 1.05, ph = 1.88, gap = 0.15;
+    // 屋根を正方形と仮定して列数を決める
+    const side = Math.sqrt(usableArea);
+    const cols = Math.max(1, Math.floor(side / (pw + gap)));
+    const rows = Math.ceil(panelCount / cols);
+    // グリッド全体を中心化
+    const totalW = cols * (pw + gap);
+    const totalH = rows * (ph + gap);
+    const startX = -totalW/2 + pw/2;
+    const startY = -totalH/2 + ph/2;
+    let cnt = 0;
+    for (let r=0; r<rows && cnt<panelCount; r++) {
+      for (let c=0; c<cols && cnt<panelCount; c++) {
+        const px = startX + c * (pw + gap);
+        const py = startY + r * (ph + gap);
+        const center = offsetLatLng(lat, lng, px, py);
+        const corners = panelCorners(center.lat, center.lng, pw, ph, 0);
+        let fill = mode==='annual' ? fluxColor(1 - cnt/panelCount*0.45) : '#1c3d6b';
         const poly = new google.maps.Polygon({
-          paths:[{lat:pLat,lng:pLng},{lat:pLat,lng:pLng+dG},{lat:pLat+dL,lng:pLng+dG},{lat:pLat+dL,lng:pLng}],
-          strokeColor:'#4a8fd4',strokeOpacity:.4,strokeWeight:.5,
-          fillColor:fill,fillOpacity:.80,
+          paths: corners,
+          strokeColor:'#5ba3e0', strokeOpacity:.6, strokeWeight:.5,
+          fillColor:fill, fillOpacity:.85,
         });
         poly.setMap(gmap);
         panelOverlays.push(poly);
@@ -857,16 +905,14 @@ function drawPanels(lat, lng, apiData, mode) {
       }
     }
   }
+}
 
-  // Building outline
-  const side2 = Math.sqrt(roofArea)*1.3;
-  const dLat2=side2*.000009, dLng2=side2*.0000125;
-  buildingPoly = new google.maps.Polygon({
-    paths:[{lat:lat-dLat2,lng:lng-dLng2},{lat:lat-dLat2,lng:lng+dLng2},{lat:lat+dLat2,lng:lng+dLng2},{lat:lat+dLat2,lng:lng-dLng2}],
-    strokeColor:'#f59e0b',strokeOpacity:.9,strokeWeight:2,
-    fillColor:'transparent',fillOpacity:0,
-  });
-  buildingPoly.setMap(gmap);
+// フラックスのカラーマップ（0=青 → 1=赤）
+function fluxColor(ratio) {
+  ratio = Math.max(0, Math.min(1, ratio));
+  // 青(220) → シアン → 緑 → 黄 → 赤(0) のHSL
+  const hue = 220 - ratio * 220;
+  return `hsl(${hue}, 85%, 50%)`;
 }
 
 // Shadow mode: color panels by sun time
