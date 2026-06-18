@@ -397,12 +397,13 @@ function enableDrawing(){
   if(rectListener){google.maps.event.removeListener(rectListener);rectListener=null}
   if(drawnRect){drawnRect.setMap(null);drawnRect=null}
   drawStartLatLng=null;
+  gmap.setOptions({clickableIcons:false});
   gmap.getDiv().style.cursor='crosshair';
   showHint(lang==='ja'?'① 屋上の角をクリック':'① Click first corner');
   drawListeners.push(google.maps.event.addListener(gmap,'click',e=>{
     if(!drawStartLatLng){
       drawStartLatLng=e.latLng;
-      drawnRect=new google.maps.Rectangle({strokeColor:'#f59e0b',strokeWeight:2,fillColor:'#f59e0b',fillOpacity:.15,map:gmap,bounds:new google.maps.LatLngBounds(e.latLng,e.latLng)});
+      drawnRect=new google.maps.Rectangle({strokeColor:'#f59e0b',strokeWeight:2,fillColor:'#f59e0b',fillOpacity:.15,map:gmap,bounds:new google.maps.LatLngBounds(e.latLng,e.latLng),clickable:false});
       showHint(lang==='ja'?'② 対角をクリック':'② Click opposite corner');
     }else{
       const b=new google.maps.LatLngBounds();b.extend(drawStartLatLng);b.extend(e.latLng);
@@ -418,7 +419,7 @@ function enableDrawing(){
     showHint(`📐 ${w.toFixed(1)}m × ${h.toFixed(1)}m = ${Math.round(w*h)}m²`);
   }));
 }
-function disableDrawing(){drawListeners.forEach(l=>google.maps.event.removeListener(l));drawListeners=[];gmap.getDiv().style.cursor='';drawStartLatLng=null;hideHint()}
+function disableDrawing(){drawListeners.forEach(l=>google.maps.event.removeListener(l));drawListeners=[];gmap.setOptions({clickableIcons:true});gmap.getDiv().style.cursor='';drawStartLatLng=null;hideHint()}
 function finishDrawing(){
   drawMode=false;disableDrawing();
   document.getElementById('drawBtn').style.background='var(--sun)';
@@ -446,16 +447,18 @@ function fillRect(){
   const cols=Math.max(1,Math.floor(wM/(pw+gap))),rows=Math.max(1,Math.floor(hM/(ph+gap)));
   const maxFit=Math.floor(cols*rows*.85);
   const totalW=cols*(pw+gap),totalH=rows*(ph+gap);
+  const startX=-totalW/2+(pw+gap)/2,startY=-totalH/2+(ph+gap)/2;
   let cnt=0;
   for(let r=0;r<rows&&cnt<maxFit;r++){for(let c=0;c<cols&&cnt<maxFit;c++){
-    const px=-totalW/2+(pw+gap)/2+c*(pw+gap),py=-totalH/2+(ph+gap)/2+r*(ph+gap);
+    const px=startX+c*(pw+gap),py=startY+r*(ph+gap);
     const center=offsetLL(cLat,cLng,px,py);
     const corners=panelCorners(center.lat,center.lng,pw,ph);
-    const poly=new google.maps.Polygon({paths:corners,strokeColor:'#5ba3e0',strokeOpacity:.6,strokeWeight:.5,fillColor:'#1c3d6b',fillOpacity:.85,zIndex:6});
+    const poly=new google.maps.Polygon({paths:corners,strokeColor:'#5ba3e0',strokeOpacity:.7,strokeWeight:.5,fillColor:'#1c3d6b',fillOpacity:.82,zIndex:6});
     poly.setMap(gmap);panelOverlays.push(poly);cnt++}}
   document.getElementById('roofArea').value=area;
   document.getElementById('autoPanels').textContent=cnt;
   document.getElementById('autoKW').textContent=(cnt*.4).toFixed(1);
+  console.log('fillRect: area='+area+'m², panels='+cnt+', cols='+cols+', rows='+rows+', wM='+wM.toFixed(1)+', hM='+hM.toFixed(1));
 }
 
 // ===== REAL DATA APIs =====
@@ -576,9 +579,8 @@ function compute(){
 function runAnalysis(){
   if(!mapReady)return;
   const addr=document.getElementById('addrInput').value.trim();if(!addr)return;
-  if(rectListener){google.maps.event.removeListener(rectListener);rectListener=null}
-  if(drawnRect){drawnRect.setMap(null);drawnRect=null}
-  document.getElementById('clearBtn').style.display='none';clearOverlays();
+  // Only clear panel overlays, keep user-drawn rectangle
+  clearOverlays();
   setLoading(true,'GEOCODING...');
   (async()=>{
     try{
@@ -600,12 +602,16 @@ function runAnalysis(){
       // Google Solar API for roof data
       setLoading(true,'ROOF DATA (Google Solar)...');
       solarApiData=await fetchSolarAPI(lat,lng);
-      if(solarApiData?.solarPotential?.maxArrayAreaMeters2){
+      if(solarApiData?.solarPotential?.maxArrayAreaMeters2 && !drawnRect){
         document.getElementById('roofArea').value=Math.round(solarApiData.solarPotential.maxArrayAreaMeters2);
       }
 
       setLoading(true,'CALCULATING...');
       gmap.setCenter({lat,lng});gmap.setZoom(20);
+
+      // If user has drawn a rect, re-fill panels in it
+      if(drawnRect){fillRect()}
+
       const r=compute();r._lat=lat;r._lng=lng;curResults=r;
       setLoading(false);
       renderCoList();showResults(r);
@@ -613,6 +619,7 @@ function runAnalysis(){
       console.error(e);setLoading(false);
       const ck=getCityKey(addr),c=NEDO[ck]||NEDO.tokyo;
       gmap.setCenter({lat:c.lat,lng:c.lng});gmap.setZoom(20);
+      if(drawnRect){fillRect()}
       curResults=compute();renderCoList();showResults(curResults);
     }
   })();
