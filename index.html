@@ -273,6 +273,7 @@ body.en span.en{display:inline}
   <div class="draw-btns">
     <button class="draw-btn" id="drawBtn" onclick="toggleDrawMode()">✏️ <span class="ja">屋上エリアを描く</span><span class="en">Draw Roof</span></button>
     <button class="draw-btn secondary" id="clearBtn" onclick="clearDrawnArea()">🗑 <span class="ja">消す</span><span class="en">Clear</span></button>
+    <button class="draw-btn" id="heatBtn" onclick="toggleHeatmap()" style="background:#ef4444;border-color:#ef4444;color:#fff">🌡 <span class="ja">日照熱力図</span><span class="en">Heatmap</span></button>
   </div>
   <div class="map-loading" id="mapLoading"><div class="spinner"></div><div class="loading-msg" id="loadingMsg">ANALYZING...</div></div>
 
@@ -677,9 +678,6 @@ function runAnalysis(){
       setLoading(true,'CALCULATING...');
       gmap.setCenter({lat,lng});gmap.setZoom(20);
 
-      // Auto-load heatmap overlay
-      loadHeatmap();
-
       // Update area from polygons if drawn
       if(drawnPolygons.length>0){updateAreaFromPolygons()}
 
@@ -804,18 +802,34 @@ function submitLead(){
 let heatmapOverlay = null;
 let heatmapOn = false;
 
+function toggleHeatmap() {
+  if (heatmapOn) {
+    // Turn off
+    if (heatmapOverlay) { heatmapOverlay.setMap(null); }
+    heatmapOn = false;
+    document.getElementById('heatBtn').style.background = '#ef4444';
+    return;
+  }
+  // Turn on - use current map center
+  loadHeatmap();
+}
+
 async function loadHeatmap() {
   if (!gmap) return;
 
-  const lat = curResults?._lat || 35.66;
-  const lng = curResults?._lng || 139.73;
+  // Use map center (works without simulation)
+  const center = gmap.getCenter();
+  const lat = center.lat();
+  const lng = center.lng();
+
+  setLoading(true, 'LOADING HEATMAP...');
 
   try {
     const r = await fetch(`/api/solar-heatmap?lat=${lat}&lng=${lng}`);
-    if (!r.ok) { console.warn('Heatmap API error'); return; }
+    if (!r.ok) { console.warn('Heatmap API error'); setLoading(false); return; }
     const data = await r.json();
 
-    if (!data.fluxTiff) return;
+    if (!data.fluxTiff) { setLoading(false); return; }
 
     // Decode base64 GeoTIFF
     const binary = atob(data.fluxTiff);
@@ -838,10 +852,12 @@ async function loadHeatmap() {
     // Solar API GeoTIFFs use EPSG:4326 (lat/lng) coordinates
     // getBoundingBox returns [minX(lng), minY(lat), maxX(lng), maxY(lat)]
     if (bbox && bbox.length === 4 && Math.abs(bbox[1]) <= 90 && Math.abs(bbox[3]) <= 90) {
+      // Note: GeoTIFF pixel order is top-to-bottom, so bbox[3] is north, bbox[1] is south
       bounds = new google.maps.LatLngBounds(
-        { lat: bbox[1], lng: bbox[0] },
-        { lat: bbox[3], lng: bbox[2] }
+        { lat: bbox[1], lng: bbox[0] },  // SW corner
+        { lat: bbox[3], lng: bbox[2] }   // NE corner
       );
+      console.log('Using bbox directly - SW:', bbox[1].toFixed(6), bbox[0].toFixed(6), 'NE:', bbox[3].toFixed(6), bbox[2].toFixed(6));
     } else {
       // Fallback: use tiepoint + scale from GeoTIFF
       const fileDir = image.fileDirectory;
@@ -899,19 +915,30 @@ async function loadHeatmap() {
       }
     }
     ctx.putImageData(imgData, 0, 0);
+    
+    // Flip canvas vertically (GeoTIFF rows go top=north, but image may need flip)
+    const flipped = document.createElement('canvas');
+    flipped.width = width; flipped.height = height;
+    const fCtx = flipped.getContext('2d');
+    fCtx.translate(0, height);
+    fCtx.scale(1, -1);
+    fCtx.drawImage(canvas, 0, 0);
 
     // Remove previous overlay
     if (heatmapOverlay) { heatmapOverlay.setMap(null); }
 
     // Create GroundOverlay with precise GeoTIFF bounds
-    heatmapOverlay = new google.maps.GroundOverlay(canvas.toDataURL(), bounds, { opacity: 0.75, clickable: false });
+    heatmapOverlay = new google.maps.GroundOverlay(flipped.toDataURL(), bounds, { opacity: 0.75, clickable: false });
     heatmapOverlay.setMap(gmap);
     heatmapOn = true;
+    document.getElementById('heatBtn').style.background = '#fff';
 
     console.log('✅ Heatmap:', width+'x'+height, 'flux:', min.toFixed(0)+'-'+max.toFixed(0));
+    setLoading(false);
 
   } catch (e) {
     console.warn('Heatmap error:', e.message);
+    setLoading(false);
   }
 }
 
