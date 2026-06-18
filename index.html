@@ -392,7 +392,7 @@ body.en .en-b{display:block;}
           <span class="slider-val" id="panelCountVal">80枚</span>
         </div>
         <input type="range" id="panelCount" min="10" max="400" value="80"
-          oninput="document.getElementById('panelCountVal').textContent=this.value+'枚'">
+          oninput="document.getElementById('panelCountVal').textContent=this.value+'枚';if(drawnRect)fillRectWithPanels();">
       </div>
       <div class="slider-wrap">
         <div class="slider-head">
@@ -490,6 +490,16 @@ body.en .en-b{display:block;}
       </button>
       <button class="vbtn" id="vbtnAnnual" onclick="setView('annual')">
         <span class="ja">📊 年間日照量</span><span class="en">📊 Annual Flux</span>
+      </button>
+    </div>
+
+    <!-- Draw area button -->
+    <div style="position:absolute;top:52px;right:10px;z-index:10;display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+      <button class="vbtn" id="drawBtn" onclick="toggleDrawMode()" style="background:var(--sun);color:var(--ink);border-color:var(--sun);font-weight:600">
+        <span class="ja">✏️ 屋上エリアを描く</span><span class="en">✏️ Draw Roof Area</span>
+      </button>
+      <button class="vbtn" id="clearDrawBtn" onclick="clearDrawnArea()" style="display:none;background:#fff">
+        <span class="ja">🗑 エリアを消す</span><span class="en">🗑 Clear Area</span>
       </button>
     </div>
 
@@ -721,6 +731,9 @@ let gmap = null;
 let mapReady = false;
 let mapView = 'panels';
 let isSat = true;
+let drawManager = null;
+let drawnRect = null;
+let drawMode = false;
 
 // ============================================================
 // LANGUAGE
@@ -745,9 +758,146 @@ function initGoogleMap() {
     tilt:0,
     disableDefaultUI:true,
   });
+
+  // Drawing Manager（矩形描画用）
+  drawManager = new google.maps.drawing.DrawingManager({
+    drawingMode: null,
+    drawingControl: false,
+    rectangleOptions: {
+      strokeColor:'#f59e0b', strokeWeight:2, strokeOpacity:.95,
+      fillColor:'#f59e0b', fillOpacity:.12,
+      editable:true, draggable:true, zIndex:5,
+    },
+  });
+  drawManager.setMap(gmap);
+
+  // 矩形描画完了イベント
+  google.maps.event.addListener(drawManager, 'rectanglecomplete', function(rect) {
+    // 既存の矩形を消す
+    if (drawnRect) drawnRect.setMap(null);
+    drawnRect = rect;
+    drawManager.setDrawingMode(null);
+    drawMode = false;
+    document.getElementById('drawBtn').classList.remove('on');
+    document.getElementById('drawBtn').style.background = 'var(--sun)';
+    document.getElementById('clearDrawBtn').style.display = 'inline-block';
+
+    // 矩形変更時に再描画
+    rect.addListener('bounds_changed', fillRectWithPanels);
+    fillRectWithPanels();
+  });
+
   renderCoList();
   setTimeout(()=>runAnalysis(),400);
 }
+
+// 描画モード切替
+function toggleDrawMode() {
+  if (!drawManager) return;
+  drawMode = !drawMode;
+  const btn = document.getElementById('drawBtn');
+  if (drawMode) {
+    drawManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE);
+    btn.classList.add('on');
+    btn.style.background = '#fff';
+    btn.style.color = 'var(--ink)';
+  } else {
+    drawManager.setDrawingMode(null);
+    btn.style.background = 'var(--sun)';
+    btn.style.color = 'var(--ink)';
+  }
+}
+
+// 描いたエリアを消す
+function clearDrawnArea() {
+  if (drawnRect) { drawnRect.setMap(null); drawnRect = null; }
+  document.getElementById('clearDrawBtn').style.display = 'none';
+  clearOverlays();
+  // 元のSolar API/推定パネルに戻す
+  if (curResults) {
+    const c = NEDO[getCityKey(document.getElementById('addrInput').value)]||NEDO.tokyo;
+    drawPanels(curResults._lat||c.lat, curResults._lng||c.lng, solarApiData, mapView==='annual'?'annual':'panels');
+  }
+}
+
+// 描いた矩形内にパネルを自動配置
+function fillRectWithPanels() {
+  if (!drawnRect || !gmap) return;
+  clearOverlays();
+
+  const b = drawnRect.getBounds();
+  const ne = b.getNorthEast();
+  const sw = b.getSouthWest();
+  const nLat = ne.lat(), sLat = sw.lat();
+  const eLng = ne.lng(), wLng = sw.lng();
+  const cLat = (nLat+sLat)/2, cLng = (eLng+wLng)/2;
+
+  // 矩形の実寸（メートル）
+  const widthM = google.maps.geometry.spherical.computeDistanceBetween(
+    new google.maps.LatLng(cLat, wLng), new google.maps.LatLng(cLat, eLng));
+  const heightM = google.maps.geometry.spherical.computeDistanceBetween(
+    new google.maps.LatLng(sLat, cLng), new google.maps.LatLng(nLat, cLng));
+
+  const realArea = Math.round(widthM * heightM);
+
+  // パネル寸法
+  const pw = 1.05, ph = 1.88, gap = 0.10;
+  const cols = Math.max(1, Math.floor(widthM / (pw + gap)));
+  const rows = Math.max(1, Math.floor(heightM / (ph + gap)));
+  const maxFit = cols * rows;
+
+  // 手動スライダーの枚数と、矩形に収まる最大枚数の小さい方
+  const requested = parseInt(document.getElementById('panelCount').value)||80;
+  const useCount = Math.min(requested, maxFit);
+
+  // 矩形内に整列配置
+  const totalW = cols * (pw + gap);
+  const totalH = rows * (ph + gap);
+  const startX = -totalW/2 + (pw+gap)/2;
+  const startY = -totalH/2 + (ph+gap)/2;
+
+  let cnt = 0;
+  for (let r=0; r<rows && cnt<useCount; r++) {
+    for (let c=0; c<cols && cnt<useCount; c++) {
+      const px = startX + c*(pw+gap);
+      const py = startY + r*(ph+gap);
+      const center = offsetLatLng(cLat, cLng, px, py);
+      const corners = panelCorners(center.lat, center.lng, pw, ph, 0);
+      let fill = mapView==='annual' ? fluxColor(1 - cnt/useCount*0.45) : '#1c3d6b';
+      const poly = new google.maps.Polygon({
+        paths: corners,
+        strokeColor:'#5ba3e0', strokeOpacity:.6, strokeWeight:.5,
+        fillColor:fill, fillOpacity:.85, zIndex:6,
+      });
+      poly.setMap(gmap);
+      panelOverlays.push(poly);
+      cnt++;
+    }
+  }
+
+  // 屋上面積を実測値で更新して再計算
+  document.getElementById('roofArea').value = realArea;
+  // パネル枚数も実際に置いた数に合わせる（最大収容数まで）
+  if (useCount !== requested && maxFit < requested) {
+    document.getElementById('panelCount').value = maxFit;
+    document.getElementById('panelCountVal').textContent = maxFit+'枚';
+  }
+
+  // 計算を更新（地図は再描画しない）
+  if (curResults) {
+    const base = computeBase();
+    base._lat = curResults._lat; base._lng = curResults._lng;
+    curResults = base;
+    showResults(base);
+  }
+
+  // バッジに実測面積表示
+  const badge = document.getElementById('mapBadge');
+  const tag = lang==='ja' ? `📐 描画エリア ${realArea}m² · ${cnt}枚` : `📐 Drawn ${realArea}m² · ${cnt} panels`;
+  badge.querySelector('.ja').textContent = tag;
+  badge.querySelector('.en').textContent = tag;
+}
+
 
 function toggleMapType() {
   isSat = !isSat;
@@ -833,28 +983,31 @@ function drawPanels(lat, lng, apiData, mode) {
 
   if (panels.length > 0) {
     // ===== Solar API実データ：本物のパネル位置・朝向 =====
-    // 建物中心に地図をフォーカス
-    const cLat = apiData.center?.latitude || lat;
-    const cLng = apiData.center?.longitude || lng;
-    gmap.setCenter({lat: cLat, lng: cLng});
-    gmap.setZoom(20);
-
     const pw = sp.panelWidthMeters  || 1.045;
     const ph = sp.panelHeightMeters || 1.879;
     const display = panels.slice(0, Math.min(panelCount, panels.length));
 
+    // パネル群の実際の中心を計算（地図フォーカス用）
+    let sumLat=0, sumLng=0;
+    display.forEach(p => { sumLat+=p.center.latitude; sumLng+=p.center.longitude; });
+    const panelCenterLat = sumLat/display.length;
+    const panelCenterLng = sumLng/display.length;
+
+    // 全パネルを含むboundsを作って地図をフィット
+    const bounds = new google.maps.LatLngBounds();
+    display.forEach(p => bounds.extend({lat:p.center.latitude, lng:p.center.longitude}));
+    gmap.fitBounds(bounds, {top:60,bottom:60,left:60,right:60});
+
     display.forEach((p) => {
       const pLat = p.center.latitude;
       const pLng = p.center.longitude;
-      // Solar APIの実際の方位角（orientation: 0=縦, 90=横）
       const orientation = p.orientation === 'LANDSCAPE' ? 90 : 0;
-      const az = orientation;
-      const corners = panelCorners(pLat, pLng, pw, ph, az);
+      const corners = panelCorners(pLat, pLng, pw, ph, orientation);
 
       let fill;
       if (mode==='annual') {
-        const ratio = Math.min((p.yearlyEnergyDcKwh||0)/(sp.maxSunshineHoursPerYear?550:450),1);
-        // 青→緑→黄→赤のヒートマップ
+        const maxE = Math.max(...display.map(x=>x.yearlyEnergyDcKwh||0)) || 1;
+        const ratio = (p.yearlyEnergyDcKwh||0)/maxE;
         fill = fluxColor(ratio);
       } else {
         fill = '#1c3d6b';
@@ -863,6 +1016,7 @@ function drawPanels(lat, lng, apiData, mode) {
         paths: corners,
         strokeColor:'#5ba3e0', strokeOpacity:.7, strokeWeight:.6,
         fillColor:fill, fillOpacity:.88,
+        zIndex: 10,
       });
       poly.setMap(gmap);
       panelOverlays.push(poly);
@@ -1117,9 +1271,15 @@ function runAnalysis() {
 
       // 2. Solar API
       solarApiData = await fetchSolarAPI(lat, lng);
-      if (solarApiData?.solarPotential) {
-        console.log('Solar API ok, roofArea:', solarApiData.solarPotential.maxArrayAreaMeters2);
-      }
+      const sp0 = solarApiData?.solarPotential;
+      const nPanels = sp0?.solarPanels?.length || 0;
+      console.log('Solar API:', sp0?'OK':'NO DATA', '| roofArea:', sp0?.maxArrayAreaMeters2, '| panels:', nPanels, '| center:', solarApiData?.center);
+      // データソースをbadgeに表示
+      const srcTag = sp0 && nPanels>0
+        ? (lang==='ja'?' · 実データ':' · Real data')
+        : (lang==='ja'?' · 推定':' · Estimated');
+      badge.querySelector('.ja').textContent = '📍 '+(geo?.formatted||addr).substring(0,18)+srcTag;
+      badge.querySelector('.en').textContent = '📍 '+(geo?.formatted||addr).substring(0,18)+srcTag;
 
       setLoading(true,'CALCULATING...');
 
@@ -1434,12 +1594,31 @@ function renderBattSection(base) {
 // ===== MODAL =====
 function showModal(){document.getElementById('modalBg').classList.add('show');}
 function hideModal(){document.getElementById('modalBg').classList.remove('show');document.getElementById('mForm').style.display='';document.getElementById('mSuccess').classList.remove('show');}
+const LEAD_ENDPOINT = 'https://script.google.com/macros/s/AKfycbxcHPrW3i-w7GpOlkXy7UU5Qyj5dLgmmwx32vjjq3hWtu54upRUg03qWaFv57q7agb-/exec';
+
 function submitLead(){
   const name=document.getElementById('mName').value, phone=document.getElementById('mPhone').value;
   if(!name||!phone){alert(lang==='ja'?'名前と電話番号を入力してください':'Please enter name and phone');return;}
+
+  const payload = {
+    name: name,
+    phone: phone,
+    email: document.getElementById('mEmail').value,
+    company: document.getElementById('mCompany').value,
+    address: document.getElementById('addrInput').value,
+  };
+
+  // Google Sheetに送信（no-corsで送信、レスポンスは読まない）
+  fetch(LEAD_ENDPOINT, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(payload),
+  }).catch(e => console.warn('Lead send error:', e));
+
+  // 即座に成功画面を表示（no-corsはレスポンスを返さないため）
   document.getElementById('mForm').style.display='none';
   document.getElementById('mSuccess').classList.add('show');
-  console.log('Lead:',{name,phone,email:document.getElementById('mEmail').value,company:document.getElementById('mCompany').value});
 }
 
 // ===== INIT =====
@@ -1453,6 +1632,6 @@ window.addEventListener('resize',()=>{
 });
 </script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=geocoding&callback=initGoogleMap&loading=async" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=geocoding,drawing,geometry&callback=initGoogleMap&loading=async" async defer></script>
 </body>
 </html>
