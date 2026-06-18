@@ -368,7 +368,7 @@ const LEAD_URL='https://script.google.com/macros/s/AKfycbymRa7tZuFlp1bOTNaWq-OB4
 // ===== STATE =====
 let lang='ja',selCo=0,battOn=false,gmap=null,mapReady=false,isSat=true;
 let curResults=null,solarApiData=null,panelOverlays=[];
-let drawMode=false,drawStartLatLng=null,drawListeners=[],drawnRect=null,rectListener=null;
+let drawMode=false,drawStartLatLng=null,drawListeners=[];
 // ===== LANGUAGE =====
 function setLang(l){lang=l;document.body.className=l;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.textContent.trim()===(l==='ja'?'日本語':'EN')))}
 
@@ -384,81 +384,146 @@ function geocode(addr){return new Promise(r=>{if(!gmap||!google?.maps?.Geocoder)
 async function fetchSolarAPI(lat,lng){try{const r=await fetch(`https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${lat}&location.longitude=${lng}&requiredQuality=HIGH&key=${GKEY}`);const d=await r.json();return d.error?null:d}catch{return null}}
 function clearOverlays(){panelOverlays.forEach(o=>o.setMap&&o.setMap(null));panelOverlays=[]}
 
-// ===== DRAWING =====
+// ===== DRAWING: Multi-polygon support =====
+let drawnPolygons = [];  // Array of {polygon, panels:[]}
+let currentDrawPoints = [];
+let currentDrawPoly = null;
+let currentDrawMarkers = [];
+
 function toggleDrawMode(){
   if(!gmap){alert('Map loading...');return}
   drawMode=!drawMode;
   const btn=document.getElementById('drawBtn');
-  if(drawMode){btn.style.background='#fff';btn.style.color='var(--ink)';enableDrawing()}
-  else{btn.style.background='var(--sun)';btn.style.color='var(--ink)';disableDrawing()}
+  if(drawMode){btn.style.background='#fff';btn.style.color='var(--ink)';btn.textContent='✓ '+(lang==='ja'?'描画完了':'Finish');enableDrawing()}
+  else{finishCurrentPoly();btn.style.background='var(--sun)';btn.style.color='var(--ink)';btn.innerHTML='✏️ <span class="ja">屋上エリアを描く</span><span class="en">Draw Roof</span>';disableDrawing()}
 }
+
 function enableDrawing(){
-  clearOverlays();
-  if(rectListener){google.maps.event.removeListener(rectListener);rectListener=null}
-  if(drawnRect){drawnRect.setMap(null);drawnRect=null}
-  drawStartLatLng=null;
-  gmap.setOptions({clickableIcons:false});
+  gmap.setOptions({clickableIcons:false,draggableCursor:'crosshair'});
   gmap.getDiv().style.cursor='crosshair';
-  showHint(lang==='ja'?'① 屋上の角をクリック':'① Click first corner');
+  showHint(lang==='ja'?'クリックで頂点を追加。完了ボタンで確定':'Click to add points. Press Finish when done');
   drawListeners.push(google.maps.event.addListener(gmap,'click',e=>{
-    if(!drawStartLatLng){
-      drawStartLatLng=e.latLng;
-      drawnRect=new google.maps.Rectangle({strokeColor:'#f59e0b',strokeWeight:2,fillColor:'#f59e0b',fillOpacity:.15,map:gmap,bounds:new google.maps.LatLngBounds(e.latLng,e.latLng),clickable:false});
-      showHint(lang==='ja'?'② 対角をクリック':'② Click opposite corner');
-    }else{
-      const b=new google.maps.LatLngBounds();b.extend(drawStartLatLng);b.extend(e.latLng);
-      drawnRect.setBounds(b);drawStartLatLng=null;finishDrawing();
-    }
+    addDrawPoint(e.latLng);
   }));
   drawListeners.push(google.maps.event.addListener(gmap,'mousemove',e=>{
-    if(!drawStartLatLng||!drawnRect)return;
-    const b=new google.maps.LatLngBounds();b.extend(drawStartLatLng);b.extend(e.latLng);drawnRect.setBounds(b);
-    const ne=b.getNorthEast(),sw=b.getSouthWest(),cLat=(ne.lat()+sw.lat())/2;
-    const w=google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(cLat,sw.lng()),new google.maps.LatLng(cLat,ne.lng()));
-    const h=google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(sw.lat(),cLat),new google.maps.LatLng(ne.lat(),cLat));
-    showHint(`📐 ${w.toFixed(1)}m × ${h.toFixed(1)}m = ${Math.round(w*h)}m²`);
+    // Live preview: update polygon to include cursor position
+    if(currentDrawPoints.length>=2&&currentDrawPoly){
+      const pts=[...currentDrawPoints.map(p=>({lat:p.lat(),lng:p.lng()})),{lat:e.latLng.lat(),lng:e.latLng.lng()}];
+      currentDrawPoly.setPath(pts);
+    }
+    // Show area estimate
+    if(currentDrawPoints.length>=2){
+      const pts=[...currentDrawPoints,e.latLng];
+      const area=google.maps.geometry.spherical.computeArea(pts);
+      showHint('📐 '+Math.round(area)+' m² · '+(currentDrawPoints.length)+' '+(lang==='ja'?'点':'pts'));
+    }
   }));
 }
-function disableDrawing(){drawListeners.forEach(l=>google.maps.event.removeListener(l));drawListeners=[];gmap.setOptions({clickableIcons:true});gmap.getDiv().style.cursor='';drawStartLatLng=null;hideHint()}
-function finishDrawing(){
-  drawMode=false;disableDrawing();
-  document.getElementById('drawBtn').style.background='var(--sun)';
+
+function addDrawPoint(latLng){
+  currentDrawPoints.push(latLng);
+  // Add vertex marker
+  const marker=new google.maps.Marker({position:latLng,map:gmap,icon:{path:google.maps.SymbolPath.CIRCLE,scale:5,fillColor:'#f59e0b',fillOpacity:1,strokeColor:'#fff',strokeWeight:2},zIndex:20});
+  currentDrawMarkers.push(marker);
+  // Create or update polygon preview
+  if(currentDrawPoints.length>=3){
+    if(!currentDrawPoly){
+      currentDrawPoly=new google.maps.Polygon({paths:currentDrawPoints.map(p=>({lat:p.lat(),lng:p.lng()})),strokeColor:'#f59e0b',strokeWeight:2,fillColor:'#f59e0b',fillOpacity:.15,map:gmap,clickable:false,zIndex:5});
+    }else{
+      currentDrawPoly.setPath(currentDrawPoints.map(p=>({lat:p.lat(),lng:p.lng()})));
+    }
+  }else if(currentDrawPoints.length===2){
+    // Draw line between first two points
+    if(!currentDrawPoly){
+      currentDrawPoly=new google.maps.Polygon({paths:currentDrawPoints.map(p=>({lat:p.lat(),lng:p.lng()})),strokeColor:'#f59e0b',strokeWeight:2,fillColor:'#f59e0b',fillOpacity:.1,map:gmap,clickable:false,zIndex:5});
+    }
+  }
+  showHint((lang==='ja'?'頂点 ':'Point ')+currentDrawPoints.length+(lang==='ja'?' 追加。3点以上で完了可能':' added. 3+ to finish'));
+}
+
+function finishCurrentPoly(){
+  if(currentDrawPoints.length<3){
+    // Not enough points, cancel
+    currentDrawMarkers.forEach(m=>m.setMap(null));currentDrawMarkers=[];
+    if(currentDrawPoly){currentDrawPoly.setMap(null);currentDrawPoly=null}
+    currentDrawPoints=[];
+    return;
+  }
+  // Finalize polygon
+  const finalPath=currentDrawPoints.map(p=>({lat:p.lat(),lng:p.lng()}));
+  if(currentDrawPoly)currentDrawPoly.setPath(finalPath);
+  else currentDrawPoly=new google.maps.Polygon({paths:finalPath,strokeColor:'#f59e0b',strokeWeight:2,fillColor:'#f59e0b',fillOpacity:.12,map:gmap,zIndex:5});
+  currentDrawPoly.setOptions({editable:true,draggable:true});
+  // Fill with panels
+  const panels=fillPolygonWithPanels(currentDrawPoly);
+  drawnPolygons.push({polygon:currentDrawPoly,panels,markers:currentDrawMarkers});
+  // Reset for next polygon
+  currentDrawPoly=null;currentDrawPoints=[];currentDrawMarkers=[];
   document.getElementById('clearBtn').style.display='inline-block';
-  if(drawnRect){drawnRect.setEditable(true);drawnRect.setDraggable(true);rectListener=drawnRect.addListener('bounds_changed',fillRect);fillRect()}
+  updateAreaFromPolygons();
+  hideHint();
 }
+
+function disableDrawing(){
+  drawListeners.forEach(l=>google.maps.event.removeListener(l));drawListeners=[];
+  gmap.setOptions({clickableIcons:true,draggableCursor:null});
+  gmap.getDiv().style.cursor='';hideHint();
+}
+
 function clearDrawnArea(){
-  if(rectListener){google.maps.event.removeListener(rectListener);rectListener=null}
-  if(drawnRect){drawnRect.setMap(null);drawnRect=null}
-  document.getElementById('clearBtn').style.display='none';clearOverlays()
+  drawnPolygons.forEach(d=>{d.polygon.setMap(null);d.panels.forEach(p=>p.setMap(null));d.markers.forEach(m=>m.setMap(null))});
+  drawnPolygons=[];
+  if(currentDrawPoly){currentDrawPoly.setMap(null);currentDrawPoly=null}
+  currentDrawMarkers.forEach(m=>m.setMap(null));currentDrawMarkers=[];currentDrawPoints=[];
+  clearOverlays();
+  document.getElementById('clearBtn').style.display='none';
+  document.getElementById('roofArea').value='0';
+  document.getElementById('autoPanels').textContent='—';
+  document.getElementById('autoKW').textContent='—';
 }
+
+function updateAreaFromPolygons(){
+  let totalArea=0,totalPanels=0;
+  drawnPolygons.forEach(d=>{
+    totalArea+=google.maps.geometry.spherical.computeArea(d.polygon.getPath());
+    totalPanels+=d.panels.length;
+  });
+  document.getElementById('roofArea').value=Math.round(totalArea);
+  document.getElementById('autoPanels').textContent=totalPanels;
+  document.getElementById('autoKW').textContent=(totalPanels*.4).toFixed(1);
+}
+
 function showHint(t){let h=document.getElementById('drawHint');if(!h){h=document.createElement('div');h.id='drawHint';h.style.cssText='position:absolute;top:80px;left:50%;transform:translateX(-50%);z-index:15;background:rgba(10,22,40,.9);color:#fbbf24;padding:7px 14px;border-radius:8px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:600;pointer-events:none;white-space:nowrap';document.querySelector('.right').appendChild(h)}h.textContent=t;h.style.display='block'}
 function hideHint(){const h=document.getElementById('drawHint');if(h)h.style.display='none'}
-// ===== FILL RECT WITH PANELS =====
+// ===== FILL POLYGON WITH PANELS =====
 function offsetLL(lat,lng,dx,dy){return{lat:lat+dy/111320,lng:lng+dx/(111320*Math.cos(lat*Math.PI/180))}}
 function panelCorners(cLat,cLng,w,h){const hw=w/2,hh=h/2;return[[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].map(([x,y])=>offsetLL(cLat,cLng,x,y))}
-function fillRect(){
-  if(!drawnRect||!gmap)return;clearOverlays();
-  const b=drawnRect.getBounds(),ne=b.getNorthEast(),sw=b.getSouthWest();
+
+function fillPolygonWithPanels(polygon){
+  const path=polygon.getPath();
+  const bounds=new google.maps.LatLngBounds();
+  path.forEach(p=>bounds.extend(p));
+  const ne=bounds.getNorthEast(),sw=bounds.getSouthWest();
   const cLat=(ne.lat()+sw.lat())/2,cLng=(ne.lng()+sw.lng())/2;
   const wM=google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(cLat,sw.lng()),new google.maps.LatLng(cLat,ne.lng()));
   const hM=google.maps.geometry.spherical.computeDistanceBetween(new google.maps.LatLng(sw.lat(),cLng),new google.maps.LatLng(ne.lat(),cLng));
-  const area=Math.round(wM*hM);
-  const pw=1.05,ph=1.88,gap=.15;
+
+  const pw=1.05,ph=1.88,gap=.12;
   const cols=Math.max(1,Math.floor(wM/(pw+gap))),rows=Math.max(1,Math.floor(hM/(ph+gap)));
-  const maxFit=cols*rows;
   const totalW=cols*(pw+gap),totalH=rows*(ph+gap);
   const startX=-totalW/2+(pw+gap)/2,startY=-totalH/2+(ph+gap)/2;
-  let cnt=0;
-  for(let r=0;r<rows&&cnt<maxFit;r++){for(let c=0;c<cols&&cnt<maxFit;c++){
+
+  const panels=[];
+  for(let r=0;r<rows;r++){for(let c=0;c<cols;c++){
     const px=startX+c*(pw+gap),py=startY+r*(ph+gap);
     const center=offsetLL(cLat,cLng,px,py);
+    // Check if panel center is inside the polygon
+    if(!google.maps.geometry.poly.containsLocation(new google.maps.LatLng(center.lat,center.lng),polygon))continue;
     const corners=panelCorners(center.lat,center.lng,pw,ph);
     const poly=new google.maps.Polygon({paths:corners,strokeColor:'#5ba3e0',strokeOpacity:.7,strokeWeight:.5,fillColor:'#1c3d6b',fillOpacity:.82,zIndex:6});
-    poly.setMap(gmap);panelOverlays.push(poly);cnt++}}
-  document.getElementById('roofArea').value=area;
-  document.getElementById('autoPanels').textContent=cnt;
-  document.getElementById('autoKW').textContent=(cnt*.4).toFixed(1);
-  console.log('fillRect: area='+area+'m², panels='+cnt+', cols='+cols+', rows='+rows+', wM='+wM.toFixed(1)+', hM='+hM.toFixed(1));
+    poly.setMap(gmap);panels.push(poly);panelOverlays.push(poly);
+  }}
+  return panels;
 }
 
 // ===== REAL DATA APIs =====
@@ -579,8 +644,10 @@ function compute(){
 function runAnalysis(){
   if(!mapReady)return;
   const addr=document.getElementById('addrInput').value.trim();if(!addr)return;
-  // Only clear panel overlays, keep user-drawn rectangle
+  // Keep drawn polygons, only clear panel overlays for recalc
   clearOverlays();
+  // Re-fill panels in existing polygons
+  drawnPolygons.forEach(d=>{d.panels.forEach(p=>p.setMap(null));d.panels=fillPolygonWithPanels(d.polygon)});
   setLoading(true,'GEOCODING...');
   (async()=>{
     try{
@@ -602,15 +669,15 @@ function runAnalysis(){
       // Google Solar API for roof data
       setLoading(true,'ROOF DATA (Google Solar)...');
       solarApiData=await fetchSolarAPI(lat,lng);
-      if(solarApiData?.solarPotential?.maxArrayAreaMeters2 && !drawnRect){
+      if(solarApiData?.solarPotential?.maxArrayAreaMeters2 && drawnPolygons.length===0){
         document.getElementById('roofArea').value=Math.round(solarApiData.solarPotential.maxArrayAreaMeters2);
       }
 
       setLoading(true,'CALCULATING...');
       gmap.setCenter({lat,lng});gmap.setZoom(20);
 
-      // If user has drawn a rect, re-fill panels in it
-      if(drawnRect){fillRect()}
+      // Update area from polygons if drawn
+      if(drawnPolygons.length>0){updateAreaFromPolygons()}
 
       const r=compute();r._lat=lat;r._lng=lng;curResults=r;
       setLoading(false);
@@ -619,7 +686,7 @@ function runAnalysis(){
       console.error(e);setLoading(false);
       const ck=getCityKey(addr),c=NEDO[ck]||NEDO.tokyo;
       gmap.setCenter({lat:c.lat,lng:c.lng});gmap.setZoom(20);
-      if(drawnRect){fillRect()}
+      if(drawnPolygons.length>0){updateAreaFromPolygons()}
       curResults=compute();renderCoList();showResults(curResults);
     }
   })();
