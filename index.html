@@ -758,54 +758,93 @@ function initGoogleMap() {
     mapTypeId:'satellite',
     tilt:0,
     disableDefaultUI:true,
-  });
-
-  // Drawing Manager（矩形描画用）
-  drawManager = new google.maps.drawing.DrawingManager({
-    drawingMode: null,
-    drawingControl: false,
-    rectangleOptions: {
-      strokeColor:'#f59e0b', strokeWeight:2, strokeOpacity:.95,
-      fillColor:'#f59e0b', fillOpacity:.12,
-      editable:true, draggable:true, zIndex:5,
-    },
-  });
-  drawManager.setMap(gmap);
-
-  // 矩形描画完了イベント
-  google.maps.event.addListener(drawManager, 'rectanglecomplete', function(rect) {
-    // 既存の矩形を消す
-    if (drawnRect) drawnRect.setMap(null);
-    drawnRect = rect;
-    drawManager.setDrawingMode(null);
-    drawMode = false;
-    document.getElementById('drawBtn').classList.remove('on');
-    document.getElementById('drawBtn').style.background = 'var(--sun)';
-    document.getElementById('clearDrawBtn').style.display = 'inline-block';
-
-    // 矩形変更時に再描画
-    rect.addListener('bounds_changed', fillRectWithPanels);
-    fillRectWithPanels();
+    gestureHandling:'greedy',
   });
 
   renderCoList();
   setTimeout(()=>runAnalysis(),400);
 }
 
-// 描画モード切替
+// ===== カスタム矩形描画（DrawingManager廃止のため自前実装）=====
+let drawStartLatLng = null;
+let drawListeners = [];
+
 function toggleDrawMode() {
-  if (!drawManager) return;
+  if (!gmap) {
+    alert(lang==='ja'?'地図の読み込み中です':'Map still loading');
+    return;
+  }
   drawMode = !drawMode;
   const btn = document.getElementById('drawBtn');
   if (drawMode) {
-    drawManager.setDrawingMode(google.maps.drawing.OverlayType.RECTANGLE);
     btn.classList.add('on');
     btn.style.background = '#fff';
     btn.style.color = 'var(--ink)';
+    enableDrawing();
   } else {
-    drawManager.setDrawingMode(null);
     btn.style.background = 'var(--sun)';
     btn.style.color = 'var(--ink)';
+    disableDrawing();
+  }
+}
+
+function enableDrawing() {
+  // 地図のドラッグを無効化して矩形描画モードに
+  gmap.setOptions({draggable:false, gestureHandling:'none'});
+  gmap.getDiv().style.cursor = 'crosshair';
+
+  // mousedown: 開始点
+  drawListeners.push(google.maps.event.addListener(gmap, 'mousedown', (e) => {
+    drawStartLatLng = e.latLng;
+    if (drawnRect) { drawnRect.setMap(null); drawnRect = null; }
+    // 仮の矩形を作成
+    drawnRect = new google.maps.Rectangle({
+      strokeColor:'#f59e0b', strokeWeight:2, strokeOpacity:.95,
+      fillColor:'#f59e0b', fillOpacity:.12,
+      map: gmap, zIndex:5,
+      bounds: new google.maps.LatLngBounds(e.latLng, e.latLng),
+    });
+  }));
+
+  // mousemove: 矩形を更新
+  drawListeners.push(google.maps.event.addListener(gmap, 'mousemove', (e) => {
+    if (!drawStartLatLng || !drawnRect) return;
+    const bounds = new google.maps.LatLngBounds();
+    bounds.extend(drawStartLatLng);
+    bounds.extend(e.latLng);
+    drawnRect.setBounds(bounds);
+  }));
+
+  // mouseup: 描画完了
+  drawListeners.push(google.maps.event.addListener(gmap, 'mouseup', (e) => {
+    if (!drawStartLatLng) return;
+    drawStartLatLng = null;
+    finishDrawing();
+  }));
+}
+
+function disableDrawing() {
+  drawListeners.forEach(l => google.maps.event.removeListener(l));
+  drawListeners = [];
+  gmap.setOptions({draggable:true, gestureHandling:'greedy'});
+  gmap.getDiv().style.cursor = '';
+}
+
+function finishDrawing() {
+  drawMode = false;
+  disableDrawing();
+  const db = document.getElementById('drawBtn');
+  db.classList.remove('on');
+  db.style.background = 'var(--sun)';
+  db.style.color = 'var(--ink)';
+  document.getElementById('clearDrawBtn').style.display = 'inline-block';
+
+  if (drawnRect) {
+    // 編集可能にする
+    drawnRect.setEditable(true);
+    drawnRect.setDraggable(true);
+    drawnRect.addListener('bounds_changed', fillRectWithPanels);
+    fillRectWithPanels();
   }
 }
 
@@ -1650,6 +1689,6 @@ window.addEventListener('resize',()=>{
 });
 </script>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=geocoding,drawing,geometry&callback=initGoogleMap&loading=async" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=geocoding,geometry&callback=initGoogleMap&loading=async" async defer></script>
 </body>
 </html>
