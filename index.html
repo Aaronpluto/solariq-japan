@@ -358,12 +358,16 @@ body.en .en-b{display:block;}
       <div class="row2">
         <div class="field">
           <label><span class="ja">屋上面積</span><span class="en">Roof Area</span><span class="field-unit">m²</span></label>
-          <input type="number" id="roofArea" value="600" min="50" max="5000">
+          <input type="number" id="roofArea" value="600" readonly style="background:var(--gray);cursor:not-allowed;color:var(--ink3);font-weight:600">
         </div>
         <div class="field">
           <label><span class="ja">建物階数</span><span class="en">Floors</span><span class="field-unit">階</span></label>
           <input type="number" id="floors" value="12" min="1" max="60">
         </div>
+      </div>
+      <div style="font-size:10px;color:var(--gray3);margin-top:-4px;line-height:1.4">
+        <span class="ja">💡 地図上で「屋上エリアを描く」と面積が自動入力されます</span>
+        <span class="en">💡 Draw a roof area on the map to auto-fill</span>
       </div>
       <div class="field">
         <label><span class="ja">周辺環境</span><span class="en">Surroundings</span></label>
@@ -386,25 +390,25 @@ body.en .en-b{display:block;}
       <span class="ja">パネル設定</span><span class="en">Panel Config</span>
     </div>
     <div class="fields">
-      <div class="slider-wrap">
-        <div class="slider-head">
-          <span class="slider-lbl"><span class="ja">パネル枚数</span><span class="en">Panel Count</span></span>
-          <span class="slider-val" id="panelCountVal">80枚</span>
+      <div style="display:flex;gap:8px">
+        <div style="flex:1;padding:10px 12px;background:var(--sun3);border-radius:var(--rs);text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--sun);letter-spacing:.5px">
+            <span class="ja">設置枚数</span><span class="en">PANELS</span>
+          </div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);line-height:1.2" id="autoPanelCount">—</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3)"><span class="ja">枚（自動）</span><span class="en">auto</span></div>
         </div>
-        <input type="range" id="panelCount" min="10" max="400" value="80"
-          oninput="document.getElementById('panelCountVal').textContent=this.value+'枚';if(drawnRect)fillRectWithPanels();">
-      </div>
-      <div class="slider-wrap">
-        <div class="slider-head">
-          <span class="slider-lbl"><span class="ja">屋上使用率</span><span class="en">Coverage</span></span>
-          <span class="slider-val" id="coverageVal">70%</span>
+        <div style="flex:1;padding:10px 12px;background:var(--sky);border-radius:var(--rs);text-align:center">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ink3);letter-spacing:.5px">SYSTEM</div>
+          <div style="font-family:'DM Serif Display',serif;font-size:22px;color:var(--ink);line-height:1.2" id="autoSysKW">—</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--gray3)">kW</div>
         </div>
-        <input type="range" id="coverage" min="30" max="95" value="70"
-          oninput="document.getElementById('coverageVal').textContent=this.value+'%'">
       </div>
+      <input type="hidden" id="panelCount" value="80">
+      <input type="hidden" id="coverage" value="80">
       <div class="field">
         <label><span class="ja">屋根の向き</span><span class="en">Orientation</span></label>
-        <select id="orientation">
+        <select id="orientation" onchange="if(curResults)recalc()">
           <option value="south" data-ja="南向き（最適）" data-en="South (optimal)">南向き（最適）</option>
           <option value="southeast" data-ja="南東向き" data-en="Southeast">南東向き</option>
           <option value="southwest" data-ja="南西向き" data-en="Southwest">南西向き</option>
@@ -486,10 +490,7 @@ body.en .en-b{display:block;}
         <span class="ja">☀ パネル配置</span><span class="en">☀ Panels</span>
       </button>
       <button class="vbtn" id="vbtnShadow" onclick="setView('shadow')">
-        <span class="ja">🌤 日照</span><span class="en">🌤 Sun</span>
-      </button>
-      <button class="vbtn" id="vbtnAnnual" onclick="setView('annual')">
-        <span class="ja">📊 年間日照量</span><span class="en">📊 Annual Flux</span>
+        <span class="ja">🌤 日照シミュレーション</span><span class="en">🌤 Sun Simulation</span>
       </button>
     </div>
 
@@ -820,14 +821,13 @@ function clearDrawnArea() {
   }
 }
 
-// 描いた矩形内にパネルを自動配置
+// 描いた矩形内にパネルを自動配置（面積・枚数すべて自動）
 function fillRectWithPanels() {
   if (!drawnRect || !gmap) return;
   clearOverlays();
 
   const b = drawnRect.getBounds();
-  const ne = b.getNorthEast();
-  const sw = b.getSouthWest();
+  const ne = b.getNorthEast(), sw = b.getSouthWest();
   const nLat = ne.lat(), sLat = sw.lat();
   const eLng = ne.lng(), wLng = sw.lng();
   const cLat = (nLat+sLat)/2, cLng = (eLng+wLng)/2;
@@ -837,37 +837,32 @@ function fillRectWithPanels() {
     new google.maps.LatLng(cLat, wLng), new google.maps.LatLng(cLat, eLng));
   const heightM = google.maps.geometry.spherical.computeDistanceBetween(
     new google.maps.LatLng(sLat, cLng), new google.maps.LatLng(nLat, cLng));
-
   const realArea = Math.round(widthM * heightM);
 
-  // パネル寸法
-  const pw = 1.05, ph = 1.88, gap = 0.10;
+  // パネル寸法（縦置き）+ 設置間隔
+  const pw = 1.05, ph = 1.88, gap = 0.15;
   const cols = Math.max(1, Math.floor(widthM / (pw + gap)));
   const rows = Math.max(1, Math.floor(heightM / (ph + gap)));
-  const maxFit = cols * rows;
+  // 屋根の85%を使用可能と仮定（点検通路・設備スペース除く）
+  const maxFit = Math.floor(cols * rows * 0.85);
 
-  // 手動スライダーの枚数と、矩形に収まる最大枚数の小さい方
-  const requested = parseInt(document.getElementById('panelCount').value)||80;
-  const useCount = Math.min(requested, maxFit);
-
-  // 矩形内に整列配置
+  // グリッド全体を矩形中心に配置
   const totalW = cols * (pw + gap);
   const totalH = rows * (ph + gap);
   const startX = -totalW/2 + (pw+gap)/2;
   const startY = -totalH/2 + (ph+gap)/2;
 
   let cnt = 0;
-  for (let r=0; r<rows && cnt<useCount; r++) {
-    for (let c=0; c<cols && cnt<useCount; c++) {
+  for (let r=0; r<rows && cnt<maxFit; r++) {
+    for (let c=0; c<cols && cnt<maxFit; c++) {
       const px = startX + c*(pw+gap);
       const py = startY + r*(ph+gap);
       const center = offsetLatLng(cLat, cLng, px, py);
       const corners = panelCorners(center.lat, center.lng, pw, ph, 0);
-      let fill = mapView==='annual' ? fluxColor(1 - cnt/useCount*0.45) : '#1c3d6b';
       const poly = new google.maps.Polygon({
         paths: corners,
         strokeColor:'#5ba3e0', strokeOpacity:.6, strokeWeight:.5,
-        fillColor:fill, fillOpacity:.85, zIndex:6,
+        fillColor:'#1c3d6b', fillOpacity:.85, zIndex:6,
       });
       poly.setMap(gmap);
       panelOverlays.push(poly);
@@ -875,27 +870,29 @@ function fillRectWithPanels() {
     }
   }
 
-  // 屋上面積を実測値で更新して再計算
+  // 面積とパネル枚数を自動入力
   document.getElementById('roofArea').value = realArea;
-  // パネル枚数も実際に置いた数に合わせる（最大収容数まで）
-  if (useCount !== requested && maxFit < requested) {
-    document.getElementById('panelCount').value = maxFit;
-    document.getElementById('panelCountVal').textContent = maxFit+'枚';
-  }
+  document.getElementById('panelCount').value = cnt;
+  document.getElementById('coverage').value = 85;
 
-  // 計算を更新（地図は再描画しない）
-  if (curResults) {
-    const base = computeBase();
-    base._lat = curResults._lat; base._lng = curResults._lng;
-    curResults = base;
-    showResults(base);
-  }
+  // 計算更新
+  recalc();
 
-  // バッジに実測面積表示
+  // バッジ更新
   const badge = document.getElementById('mapBadge');
-  const tag = lang==='ja' ? `📐 描画エリア ${realArea}m² · ${cnt}枚` : `📐 Drawn ${realArea}m² · ${cnt} panels`;
+  const tag = lang==='ja' ? '📐 ' + realArea + 'm² · ' + cnt + '枚配置' : '📐 ' + realArea + 'm² · ' + cnt + ' panels';
   badge.querySelector('.ja').textContent = tag;
   badge.querySelector('.en').textContent = tag;
+}
+
+// 再計算（地図は再描画せず数値だけ更新）
+function recalc() {
+  if (!curResults) return;
+  const base = computeBase();
+  base._lat = curResults._lat;
+  base._lng = curResults._lng;
+  curResults = base;
+  showResults(base);
 }
 
 
@@ -1084,8 +1081,9 @@ function applyTimeToPanel(altDeg, effPct) {
 
 function setView(v) {
   mapView = v;
-  ['vbtnPanels','vbtnShadow','vbtnAnnual'].forEach(id => {
-    document.getElementById(id).classList.toggle('on',
+  ['vbtnPanels','vbtnShadow'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('on',
       id==='vbtn'+v.charAt(0).toUpperCase()+v.slice(1));
   });
   const sp = document.getElementById('sunPanel');
@@ -1096,8 +1094,15 @@ function setView(v) {
   const c = NEDO[ck]||NEDO.tokyo;
   const lat = curResults._lat||c.lat, lng = curResults._lng||c.lng;
 
-  if (v==='panels'||v==='annual') {
-    drawPanels(lat, lng, solarApiData, v);
+  // 描いた矩形があればそれを優先
+  if (drawnRect) {
+    fillRectWithPanels();
+    if (v==='shadow') onSunSlider(document.getElementById('sunSlider').value);
+    return;
+  }
+
+  if (v==='panels') {
+    drawPanels(lat, lng, solarApiData, 'panels');
   } else if (v==='shadow') {
     drawPanels(lat, lng, solarApiData, 'panels');
     onSunSlider(document.getElementById('sunSlider').value);
@@ -1176,8 +1181,16 @@ function calcSubsidies(prefKey, sysKW, installCost) {
 function computeBase() {
   const addr = document.getElementById('addrInput').value;
   const area = parseFloat(document.getElementById('roofArea').value)||600;
-  const panelCount = parseInt(document.getElementById('panelCount').value)||80;
   const coverage = parseInt(document.getElementById('coverage').value)/100;
+  // パネル枚数：矩形を描いた場合はその値、未描画なら面積から自動算出
+  // パネル1枚 約2m²、屋根の coverage% を使用
+  let panelCount;
+  if (drawnRect) {
+    panelCount = parseInt(document.getElementById('panelCount').value)||80;
+  } else {
+    panelCount = Math.max(10, Math.round(area * coverage / 2.0));
+    document.getElementById('panelCount').value = panelCount;
+  }
   const orientation = document.getElementById('orientation').value;
   const surroundings = document.getElementById('surroundings').value;
   const ck = getCityKey(addr);
@@ -1343,6 +1356,11 @@ function rerenderResults(base) {
   document.getElementById('k4').textContent = (roi.cum[24]>=0?'+':'')+roi.cum[24];
   document.getElementById('panelCountDisp').textContent = base.panelCount;
   document.getElementById('sysKWDisp').textContent = base.sysKW;
+  // 左パネルの自動表示も更新
+  const apc = document.getElementById('autoPanelCount');
+  const ask = document.getElementById('autoSysKW');
+  if (apc) apc.textContent = base.panelCount;
+  if (ask) ask.textContent = base.sysKW;
   renderBarChart(base.monthlyKWh);
   renderROIChart(base);
   renderCalcSteps(base,roi);
