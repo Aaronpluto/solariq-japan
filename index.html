@@ -273,7 +273,6 @@ body.en span.en{display:inline}
   <div class="draw-btns">
     <button class="draw-btn" id="drawBtn" onclick="toggleDrawMode()">✏️ <span class="ja">屋上エリアを描く</span><span class="en">Draw Roof</span></button>
     <button class="draw-btn secondary" id="clearBtn" onclick="clearDrawnArea()">🗑 <span class="ja">消す</span><span class="en">Clear</span></button>
-    <button class="draw-btn" id="heatBtn" onclick="loadHeatmap()" style="background:#ef4444;border-color:#ef4444;color:#fff">🌡 <span class="ja">日照熱力図</span><span class="en">Heatmap</span></button>
   </div>
   <div class="map-loading" id="mapLoading"><div class="spinner"></div><div class="loading-msg" id="loadingMsg">ANALYZING...</div></div>
 
@@ -678,6 +677,9 @@ function runAnalysis(){
       setLoading(true,'CALCULATING...');
       gmap.setCenter({lat,lng});gmap.setZoom(20);
 
+      // Auto-load heatmap overlay
+      loadHeatmap();
+
       // Update area from polygons if drawn
       if(drawnPolygons.length>0){updateAreaFromPolygons()}
 
@@ -803,28 +805,17 @@ let heatmapOverlay = null;
 let heatmapOn = false;
 
 async function loadHeatmap() {
-  if (!gmap || !curResults) { alert(lang==='ja'?'先にシミュレーションを実行してください':'Run simulation first'); return; }
+  if (!gmap) return;
 
-  // Toggle off
-  if (heatmapOn) {
-    if (heatmapOverlay) { heatmapOverlay.setMap(null); }
-    heatmapOn = false;
-    document.getElementById('heatBtn').style.background = '#ef4444';
-    document.getElementById('heatBtn').style.opacity = '1';
-    return;
-  }
-
-  const lat = curResults._lat || 35.66;
-  const lng = curResults._lng || 139.73;
-
-  setLoading(true, 'LOADING HEATMAP...');
+  const lat = curResults?._lat || 35.66;
+  const lng = curResults?._lng || 139.73;
 
   try {
     const r = await fetch(`/api/solar-heatmap?lat=${lat}&lng=${lng}`);
-    if (!r.ok) { const e = await r.json(); throw new Error(e.error || 'API error'); }
+    if (!r.ok) { console.warn('Heatmap API error'); return; }
     const data = await r.json();
 
-    if (!data.fluxTiff) throw new Error('No flux data');
+    if (!data.fluxTiff) return;
 
     // Decode base64 GeoTIFF
     const binary = atob(data.fluxTiff);
@@ -842,23 +833,45 @@ async function loadHeatmap() {
     // Get precise bounds from GeoTIFF metadata
     let bounds;
     const bbox = image.getBoundingBox(); // [west, south, east, north]
-    // Check if bbox looks like valid lat/lng (not pixel coords or projected coords)
-    if (bbox && Math.abs(bbox[1]) <= 90 && Math.abs(bbox[3]) <= 90 && Math.abs(bbox[0]) <= 180 && Math.abs(bbox[2]) <= 180) {
+    console.log('GeoTIFF bbox:', bbox);
+    
+    // Solar API GeoTIFFs use EPSG:4326 (lat/lng) coordinates
+    // getBoundingBox returns [minX(lng), minY(lat), maxX(lng), maxY(lat)]
+    if (bbox && bbox.length === 4 && Math.abs(bbox[1]) <= 90 && Math.abs(bbox[3]) <= 90) {
       bounds = new google.maps.LatLngBounds(
         { lat: bbox[1], lng: bbox[0] },
         { lat: bbox[3], lng: bbox[2] }
       );
     } else {
-      // Fallback: calculate bounds from center + pixel count + pixel size
-      const pixelSize = data.pixelSize || 0.5; // meters per pixel
-      const lat = curResults._lat || 35.66;
-      const lng = curResults._lng || 139.73;
-      const halfH = (height * pixelSize) / 2 / 111320;
-      const halfW = (width * pixelSize) / 2 / (111320 * Math.cos(lat * Math.PI / 180));
-      bounds = new google.maps.LatLngBounds(
-        { lat: lat - halfH, lng: lng - halfW },
-        { lat: lat + halfH, lng: lng + halfW }
-      );
+      // Fallback: use tiepoint + scale from GeoTIFF
+      const fileDir = image.fileDirectory;
+      const tiepoint = fileDir.ModelTiepoint; // [i, j, k, x, y, z]
+      const scale = fileDir.ModelPixelScale; // [scaleX, scaleY, scaleZ]
+      
+      if (tiepoint && scale) {
+        // tiepoint[3]=originLng, tiepoint[4]=originLat (top-left corner)
+        const originLng = tiepoint[3];
+        const originLat = tiepoint[4];
+        const pixScaleX = scale[0]; // degrees per pixel (lng)
+        const pixScaleY = scale[1]; // degrees per pixel (lat)
+        
+        bounds = new google.maps.LatLngBounds(
+          { lat: originLat - pixScaleY * height, lng: originLng },
+          { lat: originLat, lng: originLng + pixScaleX * width }
+        );
+        console.log('Using tiepoint bounds:', originLat, originLng, 'scale:', pixScaleX, pixScaleY);
+      } else {
+        // Last fallback: center + pixel size estimate
+        const pixelSize = data.pixelSize || 0.5;
+        const cLat = curResults._lat || 35.66;
+        const cLng = curResults._lng || 139.73;
+        const halfH = (height * pixelSize) / 2 / 111320;
+        const halfW = (width * pixelSize) / 2 / (111320 * Math.cos(cLat * Math.PI / 180));
+        bounds = new google.maps.LatLngBounds(
+          { lat: cLat - halfH, lng: cLng - halfW },
+          { lat: cLat + halfH, lng: cLng + halfW }
+        );
+      }
     }
     console.log('Heatmap bounds:', bounds.toString());
 
@@ -894,16 +907,11 @@ async function loadHeatmap() {
     heatmapOverlay = new google.maps.GroundOverlay(canvas.toDataURL(), bounds, { opacity: 0.75, clickable: false });
     heatmapOverlay.setMap(gmap);
     heatmapOn = true;
-    document.getElementById('heatBtn').style.background = '#fff';
-    document.getElementById('heatBtn').style.opacity = '0.9';
 
     console.log('✅ Heatmap:', width+'x'+height, 'flux:', min.toFixed(0)+'-'+max.toFixed(0));
-    setLoading(false);
 
   } catch (e) {
-    console.error('Heatmap error:', e);
-    setLoading(false);
-    alert((lang==='ja'?'熱力図の取得に失敗: ':'Heatmap failed: ') + e.message);
+    console.warn('Heatmap error:', e.message);
   }
 }
 
