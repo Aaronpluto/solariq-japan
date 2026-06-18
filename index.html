@@ -445,7 +445,7 @@ function fillRect(){
   const area=Math.round(wM*hM);
   const pw=1.05,ph=1.88,gap=.15;
   const cols=Math.max(1,Math.floor(wM/(pw+gap))),rows=Math.max(1,Math.floor(hM/(ph+gap)));
-  const maxFit=Math.floor(cols*rows*.85);
+  const maxFit=cols*rows;
   const totalW=cols*(pw+gap),totalH=rows*(ph+gap);
   const startX=-totalW/2+(pw+gap)/2,startY=-totalH/2+(ph+gap)/2;
   let cnt=0;
