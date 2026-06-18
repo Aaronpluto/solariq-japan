@@ -495,7 +495,7 @@ body.en .en-b{display:block;}
     </div>
 
     <!-- Draw area button -->
-    <div style="position:absolute;top:52px;right:10px;z-index:10;display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+    <div style="position:absolute;top:52px;left:10px;z-index:10;display:flex;flex-direction:column;gap:5px;align-items:flex-start">
       <button class="vbtn" id="drawBtn" onclick="toggleDrawMode()" style="background:var(--sun);color:var(--ink);border-color:var(--sun);font-weight:600">
         <span class="ja">✏️ 屋上エリアを描く</span><span class="en">✏️ Draw Roof Area</span>
       </button>
@@ -768,6 +768,7 @@ function initGoogleMap() {
 // ===== カスタム矩形描画（DrawingManager廃止のため自前実装）=====
 let drawStartLatLng = null;
 let drawListeners = [];
+let rectBoundsListener = null;
 
 function toggleDrawMode() {
   if (!gmap) {
@@ -789,8 +790,9 @@ function toggleDrawMode() {
 }
 
 function enableDrawing() {
-  // 既存のパネル・矩形を全部消す
+  // 既存のパネル・矩形・リスナーを全部消す
   clearOverlays();
+  if (rectBoundsListener) { google.maps.event.removeListener(rectBoundsListener); rectBoundsListener = null; }
   if (drawnRect) { drawnRect.setMap(null); drawnRect = null; }
   drawStartLatLng = null;
 
@@ -879,20 +881,21 @@ function finishDrawing() {
   if (drawnRect) {
     drawnRect.setEditable(true);
     drawnRect.setDraggable(true);
-    drawnRect.addListener('bounds_changed', fillRectWithPanels);
+    rectBoundsListener = drawnRect.addListener('bounds_changed', fillRectWithPanels);
     fillRectWithPanels();
   }
 }
 
 // 描いたエリアを消す
 function clearDrawnArea() {
+  if (rectBoundsListener) { google.maps.event.removeListener(rectBoundsListener); rectBoundsListener = null; }
   if (drawnRect) { drawnRect.setMap(null); drawnRect = null; }
   document.getElementById('clearDrawBtn').style.display = 'none';
   clearOverlays();
   // 元のSolar API/推定パネルに戻す
   if (curResults) {
     const c = NEDO[getCityKey(document.getElementById('addrInput').value)]||NEDO.tokyo;
-    drawPanels(curResults._lat||c.lat, curResults._lng||c.lng, solarApiData, mapView==='annual'?'annual':'panels');
+    drawPanels(curResults._lat||c.lat, curResults._lng||c.lng, solarApiData, 'panels');
   }
 }
 
@@ -1176,11 +1179,11 @@ function setView(v) {
     return;
   }
 
-  if (v==='panels') {
-    drawPanels(lat, lng, solarApiData, 'panels');
-  } else if (v==='shadow') {
-    drawPanels(lat, lng, solarApiData, 'panels');
-    onSunSlider(document.getElementById('sunSlider').value);
+  // 矩形未描画の場合はパネルを表示しない
+  // （日照シミュレーションは矩形描画後に有効）
+  if (v==='shadow') {
+    showDrawHint(lang==='ja'?'先に「屋上エリアを描く」でパネルを配置してください':'Draw a roof area first');
+    setTimeout(hideDrawHint, 2500);
   }
 }
 
@@ -1340,6 +1343,12 @@ function runAnalysis() {
   const addr = document.getElementById('addrInput').value.trim();
   if (!addr) return;
 
+  // 新住所の分析時は描いた矩形をクリア
+  if (rectBoundsListener) { google.maps.event.removeListener(rectBoundsListener); rectBoundsListener = null; }
+  if (drawnRect) { drawnRect.setMap(null); drawnRect = null; }
+  document.getElementById('clearDrawBtn').style.display = 'none';
+  clearOverlays();
+
   setLoading(true, 'GEOCODING...');
 
   (async()=>{
@@ -1383,8 +1392,10 @@ function runAnalysis() {
 
       curResults = base;
 
-      // 4. Draw map
-      drawPanels(lat, lng, solarApiData, mapView==='annual'?'annual':'panels');
+      // 4. 地図を対象建物にフォーカス（パネルは描かない、ユーザーが描画後に表示）
+      clearOverlays();
+      gmap.setCenter({lat, lng});
+      gmap.setZoom(20);
 
       setLoading(false);
       renderCoList();
@@ -1396,7 +1407,9 @@ function runAnalysis() {
       const base = computeBase();
       const c = NEDO[getCityKey(document.getElementById('addrInput').value)]||NEDO.tokyo;
       curResults = base;
-      drawPanels(c.lat,c.lng,null,'panels');
+      clearOverlays();
+      gmap.setCenter({lat:c.lat, lng:c.lng});
+      gmap.setZoom(20);
       renderCoList();
       showResults(base);
     }
