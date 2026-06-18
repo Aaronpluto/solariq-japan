@@ -731,10 +731,36 @@ function renderCalcTab(r){
   document.getElementById('tabCalc').innerHTML=steps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
 }
 function renderSubsidyTab(r){
-  let html=r.subs.map(s=>'<div class="sub-row"><div><div style="font-weight:600">'+s.name+'</div><div style="font-size:9px;color:var(--gray3)">'+s.level+'</div></div><div class="sub-amt">▲¥'+(s.amount/10000).toFixed(0)+'万</div></div>').join('');
-  html+='<div class="sub-total"><div>'+(lang==='ja'?'補助金合計':'Total')+'</div><div style="font-size:18px;font-weight:700">¥'+(r.totalSubsidy/10000).toFixed(0)+'万</div></div>';
-  html+='<div style="margin-top:8px;padding:8px;background:var(--gray);border-radius:6px;display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--gray3)">'+(lang==='ja'?'実質負担額':'Net Cost')+'</span><span style="font-weight:700">¥'+(r.netCost/10000).toFixed(0)+'万</span></div>';
+  let html='<div style="font-size:10px;color:var(--gray3);margin-bottom:10px">'+(lang==='ja'?'✅ 適用する補助金をチェックしてください（変更すると自動再計算）':'✅ Check applicable subsidies (auto-recalculates)')+'</div>';
+  r.subs.forEach((s,i)=>{
+    const checked=s.enabled!==false?'checked':'';
+    html+='<div class="sub-row" style="gap:8px"><label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer"><input type="checkbox" '+checked+' onchange="toggleSubsidy('+i+')" style="width:16px;height:16px;accent-color:var(--green)"><div><div style="font-weight:600;font-size:10px">'+s.name+'</div><div style="font-size:9px;color:var(--gray3)">'+s.level+(s.org?' · '+s.org:'')+'</div></div></label><div class="sub-amt">▲¥'+(s.amount/10000).toFixed(0)+'万</div></div>';
+  });
+  const enabledTotal=r.subs.filter(s=>s.enabled!==false).reduce((sum,s)=>sum+s.amount,0);
+  const netAfter=r.installCost-enabledTotal;
+  html+='<div class="sub-total"><div>'+(lang==='ja'?'適用補助金合計':'Applied Total')+'</div><div style="font-size:18px;font-weight:700">¥'+(enabledTotal/10000).toFixed(0)+'万</div></div>';
+  html+='<div style="margin-top:8px;padding:8px;background:var(--gray);border-radius:6px;display:flex;justify-content:space-between;font-size:11px"><span style="color:var(--gray3)">'+(lang==='ja'?'実質負担額':'Net Cost')+'</span><span style="font-weight:700">¥'+(netAfter/10000).toFixed(0)+'万</span></div>';
+  html+='<div style="margin-top:10px;font-size:9px;color:var(--gray3);line-height:1.5">'+(lang==='ja'?'※ 補助金は年度・予算状況により変動します。申請期限・条件を必ずご確認ください。':'※ Subsidies change annually. Please verify deadlines and conditions.')+'</div>';
   document.getElementById('tabSubsidy').innerHTML=html;
+}
+
+function toggleSubsidy(idx){
+  if(!curResults||!curResults.subs[idx])return;
+  curResults.subs[idx].enabled=!curResults.subs[idx].enabled;
+  // Recalculate with only enabled subsidies
+  const enabledTotal=curResults.subs.filter(s=>s.enabled!==false).reduce((sum,s)=>sum+s.amount,0);
+  curResults.totalSubsidy=enabledTotal;
+  curResults.netCost=curResults.installCost-enabledTotal;
+  curResults.payback=curResults.netCost>0?Math.round(curResults.netCost/curResults.annSav*10)/10:0;
+  // Recalc 25yr cumulative
+  let cum=[],run=-curResults.netCost;
+  for(let y=1;y<=25;y++){const gen=curResults.annualKWh*Math.pow(.995,y);const ben=Math.round(gen*curResults.selfRate*30*Math.pow(1.02,y)+gen*(1-curResults.selfRate)*12);run+=ben-Math.round(curResults.sysKW*5000);cum.push(Math.round(run/10000))}
+  curResults.cum=cum;
+  // Update displays
+  document.getElementById('k3').textContent=curResults.payback;
+  document.getElementById('k4').textContent=(cum[24]>=0?'+':'')+cum[24];
+  renderSubsidyTab(curResults);
+  renderCalcTab(curResults);
 }
 function renderFactorsTab(r){
   document.getElementById('tabFactors').innerHTML=r.factors.map(f=>'<div class="factor"><div class="factor-head"><span>'+f.name+'</span><span style="font-family:JetBrains Mono,monospace;font-size:10px">'+f.score+'</span></div><div class="factor-bar"><div class="factor-fill" style="width:'+f.score+'%;background:'+f.color+'"></div></div></div>').join('');
