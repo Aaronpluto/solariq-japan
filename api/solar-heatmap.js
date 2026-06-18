@@ -39,39 +39,16 @@ export default async function handler(req, res) {
 
     const tiffBuffer = await tiffRes.arrayBuffer();
 
-    // Step 4: Return as base64 with metadata for frontend rendering
+    // Step 4: Return raw GeoTIFF as base64
+    // Frontend will extract precise bounds using geotiff.js getBoundingBox()
     const base64 = Buffer.from(tiffBuffer).toString('base64');
-
-    // Also return bounds info for overlay positioning
     const imageryDate = meta.imageryDate || {};
-    const bounds = {
-      north: parseFloat(lat) + 0.0005,
-      south: parseFloat(lat) - 0.0005,
-      east: parseFloat(lng) + 0.0006,
-      west: parseFloat(lng) - 0.0006,
-    };
-
-    // If metadata has proper bounds, use those
-    if (meta.imageryProcessedDate) {
-      // bounds are approximate based on radius
-      const mPerDeg = 111320;
-      const latOffset = radius / mPerDeg;
-      const lngOffset = radius / (mPerDeg * Math.cos(parseFloat(lat) * Math.PI / 180));
-      bounds.north = parseFloat(lat) + latOffset;
-      bounds.south = parseFloat(lat) - latOffset;
-      bounds.east = parseFloat(lng) + lngOffset;
-      bounds.west = parseFloat(lng) - lngOffset;
-    }
 
     return res.status(200).json({
       success: true,
       fluxTiff: base64,
-      bounds,
       imageryDate,
-      rgbUrl: rgbUrl ? `${rgbUrl}&key=${GKEY}` : null,
-      maskUrl: maskUrl ? `${maskUrl}&key=${GKEY}` : null,
       pixelSize: meta.pixelSizeMeters || 0.5,
-      note: 'GeoTIFF is base64 encoded. Use geotiff.js to parse in frontend.',
     });
 
   } catch (err) {
