@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     // Step 1: Get DataLayers metadata from Solar API
-    const radius = 100; // meters around point (larger area)
+    const radius = 175; // max practical radius for Solar API
     const url = `https://solar.googleapis.com/v1/dataLayers:get?location.latitude=${lat}&location.longitude=${lng}&radiusMeters=${radius}&view=FULL_LAYERS&requiredQuality=HIGH&pixelSizeMeters=0.5&key=${GKEY}`;
 
     const metaRes = await fetch(url);
