@@ -858,13 +858,10 @@ async function loadHeatmap() {
     // Solar API GeoTIFFs use EPSG:4326 (lat/lng) coordinates
     // getBoundingBox returns [minX(lng), minY(lat), maxX(lng), maxY(lat)]
     if (bbox && bbox.length === 4 && Math.abs(bbox[1]) <= 90 && Math.abs(bbox[3]) <= 90) {
-      // Apply correction: Solar API GeoTIFFs have a known slight offset on Google Maps
-      // The tiepoint refers to pixel center, not edge. Shift by half a pixel.
-      const pixW = (bbox[2] - bbox[0]) / width;
-      const pixH = (bbox[3] - bbox[1]) / height;
+      // Use bbox directly without correction
       bounds = new google.maps.LatLngBounds(
-        { lat: bbox[1] + pixH/2, lng: bbox[0] + pixW/2 },
-        { lat: bbox[3] + pixH/2, lng: bbox[2] + pixW/2 }
+        { lat: bbox[1], lng: bbox[0] },
+        { lat: bbox[3], lng: bbox[2] }
       );
       console.log('Using bbox - SW:', (bbox[1]+pixH/2).toFixed(6), (bbox[0]+pixW/2).toFixed(6), 'NE:', (bbox[3]+pixH/2).toFixed(6), (bbox[2]+pixW/2).toFixed(6));
     } else {
