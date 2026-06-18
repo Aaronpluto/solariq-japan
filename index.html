@@ -401,7 +401,7 @@ function toggleDrawMode(){
 function enableDrawing(){
   gmap.setOptions({clickableIcons:false,draggableCursor:'crosshair'});
   gmap.getDiv().style.cursor='crosshair';
-  showHint(lang==='ja'?'クリックで頂点を追加。完了ボタンで確定':'Click to add points. Press Finish when done');
+  showHint(lang==='ja'?'クリックで頂点を追加。ESCで完了':'Click to add points. ESC to finish');
   drawListeners.push(google.maps.event.addListener(gmap,'click',e=>{
     addDrawPoint(e.latLng);
   }));
@@ -772,6 +772,16 @@ function submitLead(){
 
 // ===== INIT =====
 window.addEventListener('load',()=>renderCoList());
+window.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&drawMode){
+    finishCurrentPoly();
+    drawMode=false;
+    const btn=document.getElementById('drawBtn');
+    btn.style.background='var(--sun)';btn.style.color='var(--ink)';
+    btn.innerHTML='✏️ <span class="'+(lang==='ja'?'ja':'en')+'">'+( lang==='ja'?'屋上エリアを描く':'Draw Roof')+'</span>';
+    disableDrawing();
+  }
+});
 </script>
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc&libraries=geocoding,geometry&callback=initGoogleMap&loading=async" async defer></script>
 </body>
