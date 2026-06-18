@@ -915,20 +915,12 @@ async function loadHeatmap() {
       }
     }
     ctx.putImageData(imgData, 0, 0);
-    
-    // Flip canvas vertically (GeoTIFF rows go top=north, but image may need flip)
-    const flipped = document.createElement('canvas');
-    flipped.width = width; flipped.height = height;
-    const fCtx = flipped.getContext('2d');
-    fCtx.translate(0, height);
-    fCtx.scale(1, -1);
-    fCtx.drawImage(canvas, 0, 0);
 
     // Remove previous overlay
     if (heatmapOverlay) { heatmapOverlay.setMap(null); }
 
     // Create GroundOverlay with precise GeoTIFF bounds
-    heatmapOverlay = new google.maps.GroundOverlay(flipped.toDataURL(), bounds, { opacity: 0.75, clickable: false });
+    heatmapOverlay = new google.maps.GroundOverlay(canvas.toDataURL(), bounds, { opacity: 0.75, clickable: false });
     heatmapOverlay.setMap(gmap);
     heatmapOn = true;
     document.getElementById('heatBtn').style.background = '#fff';
