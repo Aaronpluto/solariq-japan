@@ -803,24 +803,30 @@ let heatmapOverlay = null;
 let heatmapOn = false;
 
 function toggleHeatmap() {
+  if (!gmap) return;
   if (heatmapOn) {
-    // Turn off
     if (heatmapOverlay) { heatmapOverlay.setMap(null); }
     heatmapOn = false;
     document.getElementById('heatBtn').style.background = '#ef4444';
     return;
   }
-  // Turn on - use current map center
   loadHeatmap();
 }
 
 async function loadHeatmap() {
   if (!gmap) return;
 
-  // Use map center (works without simulation)
-  const center = gmap.getCenter();
-  const lat = center.lat();
-  const lng = center.lng();
+  // Use curResults if available, otherwise use map center
+  let lat, lng;
+  if (curResults && curResults._lat) {
+    lat = curResults._lat;
+    lng = curResults._lng;
+  } else {
+    const center = gmap.getCenter();
+    if (!center) return;
+    lat = center.lat();
+    lng = center.lng();
+  }
 
   setLoading(true, 'LOADING HEATMAP...');
 
@@ -852,12 +858,15 @@ async function loadHeatmap() {
     // Solar API GeoTIFFs use EPSG:4326 (lat/lng) coordinates
     // getBoundingBox returns [minX(lng), minY(lat), maxX(lng), maxY(lat)]
     if (bbox && bbox.length === 4 && Math.abs(bbox[1]) <= 90 && Math.abs(bbox[3]) <= 90) {
-      // Note: GeoTIFF pixel order is top-to-bottom, so bbox[3] is north, bbox[1] is south
+      // Apply correction: Solar API GeoTIFFs have a known slight offset on Google Maps
+      // The tiepoint refers to pixel center, not edge. Shift by half a pixel.
+      const pixW = (bbox[2] - bbox[0]) / width;
+      const pixH = (bbox[3] - bbox[1]) / height;
       bounds = new google.maps.LatLngBounds(
-        { lat: bbox[1], lng: bbox[0] },  // SW corner
-        { lat: bbox[3], lng: bbox[2] }   // NE corner
+        { lat: bbox[1] + pixH/2, lng: bbox[0] + pixW/2 },
+        { lat: bbox[3] + pixH/2, lng: bbox[2] + pixW/2 }
       );
-      console.log('Using bbox directly - SW:', bbox[1].toFixed(6), bbox[0].toFixed(6), 'NE:', bbox[3].toFixed(6), bbox[2].toFixed(6));
+      console.log('Using bbox - SW:', (bbox[1]+pixH/2).toFixed(6), (bbox[0]+pixW/2).toFixed(6), 'NE:', (bbox[3]+pixH/2).toFixed(6), (bbox[2]+pixW/2).toFixed(6));
     } else {
       // Fallback: use tiepoint + scale from GeoTIFF
       const fileDir = image.fileDirectory;
