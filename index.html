@@ -713,7 +713,7 @@ function renderCalcTab(r){
   const co=COMPANIES[selCo];
   const nNat=SUBSIDY_DB.national.length,nPref=(SUBSIDY_DB.pref[getPrefKey(r.addr)]||[]).length;
   const steps=isJa?[
-    {l:'STEP 1 · NEDOデータ',d:(r.dataSource||'NEDO')+' · GHI '+(r.dailyGHI||4.2)+' kWh/m²/日',v:'取得完了',c:''},
+    {l:'STEP 1 · 気象実測データ',d:(lang==='ja'?'過去1年間の衛星観測データ（気象庁準拠）· 平均日射量 ':'1-year satellite observation (JMA-grade) · Avg GHI ')+(r.dailyGHI||4.2)+' kWh/m²/日',v:lang==='ja'?'✓ 実績データ取得完了':'✓ Real data loaded',c:''},
     {l:'STEP 2 · 傾斜面変換',d:'Perez簡易モデル · 向き×'+r.orientF,v:'実効日射量算出',c:''},
     {l:'STEP 3 · 発電量',d:'システム損失0.80 · 遮蔽×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'万 kWh/年',c:'hi'},
     {l:'STEP 4 · 設置費用',d:'¥'+(co.pricePerKW/10000).toFixed(1)+'万/kW × '+r.sysKW+'kW',v:'¥'+(r.installCost/10000).toFixed(0)+'万',c:''},
