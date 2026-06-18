@@ -789,38 +789,73 @@ function toggleDrawMode() {
 }
 
 function enableDrawing() {
-  // 地図のドラッグを無効化して矩形描画モードに
-  gmap.setOptions({draggable:false, gestureHandling:'none'});
+  // 既存のパネル・矩形を全部消す
+  clearOverlays();
+  if (drawnRect) { drawnRect.setMap(null); drawnRect = null; }
+  drawStartLatLng = null;
+
+  gmap.setOptions({draggable:true, gestureHandling:'greedy'});
   gmap.getDiv().style.cursor = 'crosshair';
 
-  // mousedown: 開始点
-  drawListeners.push(google.maps.event.addListener(gmap, 'mousedown', (e) => {
-    drawStartLatLng = e.latLng;
-    if (drawnRect) { drawnRect.setMap(null); drawnRect = null; }
-    // 仮の矩形を作成
-    drawnRect = new google.maps.Rectangle({
-      strokeColor:'#f59e0b', strokeWeight:2, strokeOpacity:.95,
-      fillColor:'#f59e0b', fillOpacity:.12,
-      map: gmap, zIndex:5,
-      bounds: new google.maps.LatLngBounds(e.latLng, e.latLng),
-    });
+  // ヒント表示
+  showDrawHint(lang==='ja'?'① 屋上の角をクリック':'① Click first corner of roof');
+
+  // 1回目クリック=開始点、2回目クリック=完了
+  drawListeners.push(google.maps.event.addListener(gmap, 'click', (e) => {
+    if (!drawStartLatLng) {
+      // 1点目
+      drawStartLatLng = e.latLng;
+      drawnRect = new google.maps.Rectangle({
+        strokeColor:'#f59e0b', strokeWeight:2, strokeOpacity:.95,
+        fillColor:'#f59e0b', fillOpacity:.15,
+        map: gmap, zIndex:5,
+        bounds: new google.maps.LatLngBounds(e.latLng, e.latLng),
+      });
+      showDrawHint(lang==='ja'?'② 対角の角をクリック':'② Click opposite corner');
+    } else {
+      // 2点目=完了
+      const bounds = new google.maps.LatLngBounds();
+      bounds.extend(drawStartLatLng);
+      bounds.extend(e.latLng);
+      drawnRect.setBounds(bounds);
+      drawStartLatLng = null;
+      finishDrawing();
+    }
   }));
 
-  // mousemove: 矩形を更新
+  // マウス移動でプレビュー＋リアルタイム寸法表示
   drawListeners.push(google.maps.event.addListener(gmap, 'mousemove', (e) => {
     if (!drawStartLatLng || !drawnRect) return;
     const bounds = new google.maps.LatLngBounds();
     bounds.extend(drawStartLatLng);
     bounds.extend(e.latLng);
     drawnRect.setBounds(bounds);
+    // リアルタイム寸法
+    const ne = bounds.getNorthEast(), sw = bounds.getSouthWest();
+    const cLat = (ne.lat()+sw.lat())/2;
+    const w = google.maps.geometry.spherical.computeDistanceBetween(
+      new google.maps.LatLng(cLat, sw.lng()), new google.maps.LatLng(cLat, ne.lng()));
+    const h = google.maps.geometry.spherical.computeDistanceBetween(
+      new google.maps.LatLng(sw.lat(), (ne.lng()+sw.lng())/2), new google.maps.LatLng(ne.lat(), (ne.lng()+sw.lng())/2));
+    showDrawHint(`📐 ${w.toFixed(1)}m × ${h.toFixed(1)}m = ${Math.round(w*h)}m²`);
   }));
+}
 
-  // mouseup: 描画完了
-  drawListeners.push(google.maps.event.addListener(gmap, 'mouseup', (e) => {
-    if (!drawStartLatLng) return;
-    drawStartLatLng = null;
-    finishDrawing();
-  }));
+function showDrawHint(text) {
+  let hint = document.getElementById('drawHint');
+  if (!hint) {
+    hint = document.createElement('div');
+    hint.id = 'drawHint';
+    hint.style.cssText = 'position:absolute;top:96px;left:50%;transform:translateX(-50%);z-index:15;background:rgba(10,22,40,.9);color:#fbbf24;padding:8px 16px;border-radius:8px;font-family:JetBrains Mono,monospace;font-size:13px;font-weight:600;backdrop-filter:blur(8px);pointer-events:none;white-space:nowrap;';
+    document.querySelector('.map-wrap').appendChild(hint);
+  }
+  hint.textContent = text;
+  hint.style.display = 'block';
+}
+
+function hideDrawHint() {
+  const hint = document.getElementById('drawHint');
+  if (hint) hint.style.display = 'none';
 }
 
 function disableDrawing() {
@@ -828,6 +863,8 @@ function disableDrawing() {
   drawListeners = [];
   gmap.setOptions({draggable:true, gestureHandling:'greedy'});
   gmap.getDiv().style.cursor = '';
+  drawStartLatLng = null;
+  hideDrawHint();
 }
 
 function finishDrawing() {
@@ -840,7 +877,6 @@ function finishDrawing() {
   document.getElementById('clearDrawBtn').style.display = 'inline-block';
 
   if (drawnRect) {
-    // 編集可能にする
     drawnRect.setEditable(true);
     drawnRect.setDraggable(true);
     drawnRect.addListener('bounds_changed', fillRectWithPanels);
