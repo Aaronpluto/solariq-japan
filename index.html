@@ -840,11 +840,27 @@ async function loadHeatmap() {
     const fluxData = rasters[0];
 
     // Get precise bounds from GeoTIFF metadata
+    let bounds;
     const bbox = image.getBoundingBox(); // [west, south, east, north]
-    const bounds = new google.maps.LatLngBounds(
-      { lat: bbox[1], lng: bbox[0] },
-      { lat: bbox[3], lng: bbox[2] }
-    );
+    // Check if bbox looks like valid lat/lng (not pixel coords or projected coords)
+    if (bbox && Math.abs(bbox[1]) <= 90 && Math.abs(bbox[3]) <= 90 && Math.abs(bbox[0]) <= 180 && Math.abs(bbox[2]) <= 180) {
+      bounds = new google.maps.LatLngBounds(
+        { lat: bbox[1], lng: bbox[0] },
+        { lat: bbox[3], lng: bbox[2] }
+      );
+    } else {
+      // Fallback: calculate bounds from center + pixel count + pixel size
+      const pixelSize = data.pixelSize || 0.5; // meters per pixel
+      const lat = curResults._lat || 35.66;
+      const lng = curResults._lng || 139.73;
+      const halfH = (height * pixelSize) / 2 / 111320;
+      const halfW = (width * pixelSize) / 2 / (111320 * Math.cos(lat * Math.PI / 180));
+      bounds = new google.maps.LatLngBounds(
+        { lat: lat - halfH, lng: lng - halfW },
+        { lat: lat + halfH, lng: lng + halfW }
+      );
+    }
+    console.log('Heatmap bounds:', bounds.toString());
 
     // Create canvas with heatmap colors
     const canvas = document.createElement('canvas');
