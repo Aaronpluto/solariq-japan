@@ -498,9 +498,9 @@ function finishCurrentPoly(){
   if(currentDrawPoly)currentDrawPoly.setPath(finalPath);
   else currentDrawPoly=new google.maps.Polygon({paths:finalPath,strokeColor:'#f59e0b',strokeWeight:2,fillColor:'#f59e0b',fillOpacity:.12,map:gmap,zIndex:5});
   currentDrawPoly.setOptions({editable:true,draggable:true});
-  // Fill with panels
-  const panels=fillPolygonWithPanels(currentDrawPoly);
-  drawnPolygons.push({polygon:currentDrawPoly,panels,markers:currentDrawMarkers});
+  // Fill with panels (count only)
+  const panelCount=fillPolygonWithPanels(currentDrawPoly);
+  drawnPolygons.push({polygon:currentDrawPoly,panelCount,markers:currentDrawMarkers});
   // Reset for next polygon
   currentDrawPoly=null;currentDrawPoints=[];currentDrawMarkers=[];
   document.getElementById('clearBtn').style.display='inline-block';
@@ -515,8 +515,8 @@ function disableDrawing(){
 }
 
 function clearDrawnArea(){
-  drawnPolygons.forEach(d=>{d.polygon.setMap(null);d.panels.forEach(p=>p.setMap(null));d.markers.forEach(m=>m.setMap(null))});
-  drawnPolygons=[];
+  drawnPolygons.forEach(d=>{d.polygon.setMap(null);d.markers.forEach(m=>m.setMap(null))});
+  drawnPolygons=[];drawnCenter=null;
   if(currentDrawPoly){currentDrawPoly.setMap(null);currentDrawPoly=null}
   currentDrawMarkers.forEach(m=>m.setMap(null));currentDrawMarkers=[];currentDrawPoints=[];
   clearOverlays();
@@ -531,7 +531,7 @@ function updateAreaFromPolygons(){
   const allBounds=new google.maps.LatLngBounds();
   drawnPolygons.forEach(d=>{
     totalArea+=google.maps.geometry.spherical.computeArea(d.polygon.getPath());
-    totalPanels+=d.panels.length;
+    totalPanels+=d.panelCount;
     d.polygon.getPath().forEach(p=>allBounds.extend(p));
   });
   document.getElementById('roofArea').value=Math.round(totalArea);
@@ -548,9 +548,8 @@ function updateAreaFromPolygons(){
 
 function showHint(t){let h=document.getElementById('drawHint');if(!h){h=document.createElement('div');h.id='drawHint';h.style.cssText='position:absolute;top:80px;left:50%;transform:translateX(-50%);z-index:15;background:rgba(10,22,40,.9);color:#fbbf24;padding:7px 14px;border-radius:8px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:600;pointer-events:none;white-space:nowrap';document.querySelector('.right').appendChild(h)}h.textContent=t;h.style.display='block'}
 function hideHint(){const h=document.getElementById('drawHint');if(h)h.style.display='none'}
-// ===== FILL POLYGON WITH PANELS =====
+// ===== FILL POLYGON WITH PANELS (calculation only, no visual) =====
 function offsetLL(lat,lng,dx,dy){return{lat:lat+dy/111320,lng:lng+dx/(111320*Math.cos(lat*Math.PI/180))}}
-function panelCorners(cLat,cLng,w,h){const hw=w/2,hh=h/2;return[[-hw,-hh],[hw,-hh],[hw,hh],[-hw,hh]].map(([x,y])=>offsetLL(cLat,cLng,x,y))}
 
 function fillPolygonWithPanels(polygon){
   const path=polygon.getPath();
@@ -563,20 +562,17 @@ function fillPolygonWithPanels(polygon){
 
   const pw=1.05,ph=1.88,gap=.12;
   const cols=Math.max(1,Math.floor(wM/(pw+gap))),rows=Math.max(1,Math.floor(hM/(ph+gap)));
+
+  // Count how many panels fit inside the polygon (no visual drawing)
+  let count=0;
   const totalW=cols*(pw+gap),totalH=rows*(ph+gap);
   const startX=-totalW/2+(pw+gap)/2,startY=-totalH/2+(ph+gap)/2;
-
-  const panels=[];
   for(let r=0;r<rows;r++){for(let c=0;c<cols;c++){
     const px=startX+c*(pw+gap),py=startY+r*(ph+gap);
     const center=offsetLL(cLat,cLng,px,py);
-    // Check if panel center is inside the polygon
-    if(!google.maps.geometry.poly.containsLocation(new google.maps.LatLng(center.lat,center.lng),polygon))continue;
-    const corners=panelCorners(center.lat,center.lng,pw,ph);
-    const poly=new google.maps.Polygon({paths:corners,strokeColor:'#5ba3e0',strokeOpacity:.7,strokeWeight:.5,fillColor:'#1c3d6b',fillOpacity:.82,zIndex:6});
-    poly.setMap(gmap);panels.push(poly);panelOverlays.push(poly);
+    if(google.maps.geometry.poly.containsLocation(new google.maps.LatLng(center.lat,center.lng),polygon))count++;
   }}
-  return panels;
+  return count;
 }
 
 // ===== REAL DATA APIs =====
@@ -699,10 +695,8 @@ function compute(){
 function runAnalysis(){
   if(!mapReady)return;
   const addr=document.getElementById('addrInput').value.trim();if(!addr)return;
-  // Keep drawn polygons, only clear panel overlays for recalc
-  clearOverlays();
-  // Re-fill panels in existing polygons
-  drawnPolygons.forEach(d=>{d.panels.forEach(p=>p.setMap(null));d.panels=fillPolygonWithPanels(d.polygon)});
+  // Keep drawn polygons, recalculate panel counts
+  drawnPolygons.forEach(d=>{d.panelCount=fillPolygonWithPanels(d.polygon)});
   setLoading(true,'GEOCODING...');
   (async()=>{
     try{
