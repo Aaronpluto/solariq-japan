@@ -763,9 +763,16 @@ function showResults(r){
   document.getElementById('rScore').textContent=r.score;
   document.getElementById('rGrade').textContent=r.score>=80?'⭐ '+(lang==='ja'?'非常に適合':'Excellent'):r.score>=60?'✅ '+(lang==='ja'?'適合':'Good'):'⚠️ '+(lang==='ja'?'要検討':'Review');
   document.getElementById('k1').textContent=(r.annualKWh/10000).toFixed(1)+'万';
-  document.getElementById('k2').textContent=r.annSavMan.toFixed(1);
-  document.getElementById('k3').textContent=r.payback;
-  document.getElementById('k4').textContent=(r.cum[24]>=0?'+':'')+r.cum[24];
+  // Lock financial KPIs until unlocked
+  if(window.reportUnlocked){
+    document.getElementById('k2').textContent=r.annSavMan.toFixed(1);
+    document.getElementById('k3').textContent=r.payback;
+    document.getElementById('k4').textContent=(r.cum[24]>=0?'+':'')+r.cum[24];
+  }else{
+    document.getElementById('k2').textContent='🔒';
+    document.getElementById('k3').textContent='🔒';
+    document.getElementById('k4').textContent='🔒';
+  }
   document.getElementById('autoPanels').textContent=r.panels;
   document.getElementById('autoKW').textContent=r.sysKW;
   renderCalcTab(r);renderSubsidyTab(r);renderFactorsTab(r);
@@ -868,7 +875,14 @@ function unlockReport(){
   fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Report Unlock',phone:'',email:email,company:'',address:drawnCenter?(drawnCenter.address||drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6)):document.getElementById('addrInput').value,consent:'施工会社への情報提供に同意'})}).catch(()=>{});
   window.reportUnlocked=true;
   // Re-render with full data
-  if(curResults)renderSubsidyTab(curResults);
+  if(curResults){
+    renderSubsidyTab(curResults);
+    renderCalcTab(curResults);
+    // Unlock KPIs
+    document.getElementById('k2').textContent=curResults.annSavMan.toFixed(1);
+    document.getElementById('k3').textContent=curResults.payback;
+    document.getElementById('k4').textContent=(curResults.cum[24]>=0?'+':'')+curResults.cum[24];
+  }
 }
 
 function toggleSubsidy(idx){
