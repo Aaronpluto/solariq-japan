@@ -787,6 +787,30 @@ function renderCalcTab(r){
   document.getElementById('tabCalc').innerHTML=steps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
 }
 function renderSubsidyTab(r){
+  // Check if user has unlocked
+  if(!window.reportUnlocked){
+    // Blurred / gated view
+    let html='<div style="position:relative">';
+    html+='<div style="filter:blur(4px);pointer-events:none;user-select:none">';
+    r.subs.forEach(s=>{
+      html+='<div class="sub-row"><div><div style="font-weight:600">'+s.name+'</div><div style="font-size:9px;color:var(--gray3)">'+s.level+'</div></div><div class="sub-amt">▲¥???万</div></div>';
+    });
+    html+='<div class="sub-total"><div>補助金合計</div><div style="font-size:18px;font-weight:700">¥???万</div></div>';
+    html+='</div>';
+    // Unlock overlay
+    html+='<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(255,255,255,.85);border-radius:var(--rs);padding:20px;text-align:center">';
+    html+='<div style="font-size:24px;margin-bottom:8px">🔒</div>';
+    html+='<div style="font-size:13px;font-weight:600;margin-bottom:4px">'+(lang==='ja'?'完整レポートを受け取る':'Get Full Report')+'</div>';
+    html+='<div style="font-size:10px;color:var(--gray3);margin-bottom:12px;line-height:1.5">'+(lang==='ja'?'メールアドレスを入力すると、補助金詳細・ROI分析を含む完全レポートをお送りします':'Enter your email to receive the full report with subsidy details and ROI analysis')+'</div>';
+    html+='<input type="email" id="unlockEmail" placeholder="your@email.com" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray2);border-radius:var(--rs);font-size:13px;margin-bottom:8px;outline:none">';
+    html+='<label style="display:flex;align-items:flex-start;gap:6px;font-size:9px;color:var(--gray3);text-align:left;margin-bottom:10px;cursor:pointer;line-height:1.4"><input type="checkbox" id="unlockConsent" style="margin-top:2px;width:14px;height:14px;flex-shrink:0"><span>'+(lang==='ja'?'シミュレーション結果を提携施工会社に提供することに同意します。施工会社から見積もりのご連絡をさせていただく場合があります。':'I agree to share simulation results with partner installers. They may contact me with quotes.')+'</span></label>';
+    html+='<button onclick="unlockReport()" style="width:100%;padding:10px;background:var(--ink);color:#fff;border:none;border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer">'+(lang==='ja'?'🔓 レポートを解除する':'🔓 Unlock Report')+'</button>';
+    html+='</div></div>';
+    document.getElementById('tabSubsidy').innerHTML=html;
+    return;
+  }
+
+  // Unlocked: show full data with checkboxes
   let html='<div style="font-size:10px;color:var(--gray3);margin-bottom:10px">'+(lang==='ja'?'✅ 適用する補助金をチェックしてください（変更すると自動再計算）':'✅ Check applicable subsidies (auto-recalculates)')+'</div>';
   r.subs.forEach((s,i)=>{
     const checked=s.enabled!==false?'checked':'';
@@ -800,19 +824,28 @@ function renderSubsidyTab(r){
   document.getElementById('tabSubsidy').innerHTML=html;
 }
 
+function unlockReport(){
+  const email=document.getElementById('unlockEmail')?.value;
+  const consent=document.getElementById('unlockConsent')?.checked;
+  if(!email||!email.includes('@')){alert(lang==='ja'?'有効なメールアドレスを入力してください':'Please enter a valid email');return}
+  if(!consent){alert(lang==='ja'?'施工会社への情報提供に同意してください':'Please agree to share information with installers');return}
+  // Send lead with email
+  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Report Unlock',phone:'',email:email,company:'',address:drawnCenter?drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6):document.getElementById('addrInput').value,consent:'施工会社への情報提供に同意'})}).catch(()=>{});
+  window.reportUnlocked=true;
+  // Re-render with full data
+  if(curResults)renderSubsidyTab(curResults);
+}
+
 function toggleSubsidy(idx){
   if(!curResults||!curResults.subs[idx])return;
   curResults.subs[idx].enabled=!curResults.subs[idx].enabled;
-  // Recalculate with only enabled subsidies
   const enabledTotal=curResults.subs.filter(s=>s.enabled!==false).reduce((sum,s)=>sum+s.amount,0);
   curResults.totalSubsidy=enabledTotal;
   curResults.netCost=curResults.installCost-enabledTotal;
   curResults.payback=curResults.netCost>0?Math.round(curResults.netCost/curResults.annSav*10)/10:0;
-  // Recalc 25yr cumulative
   let cum=[],run=-curResults.netCost;
   for(let y=1;y<=25;y++){const gen=curResults.annualKWh*Math.pow(.995,y);const ben=Math.round(gen*curResults.selfRate*30*Math.pow(1.02,y)+gen*(1-curResults.selfRate)*12);run+=ben-Math.round(curResults.sysKW*5000);cum.push(Math.round(run/10000))}
   curResults.cum=cum;
-  // Update displays
   document.getElementById('k3').textContent=curResults.payback;
   document.getElementById('k4').textContent=(cum[24]>=0?'+':'')+cum[24];
   renderSubsidyTab(curResults);
@@ -848,7 +881,7 @@ function hideModal(){document.getElementById('modalBg').classList.remove('show')
 function submitLead(){
   const name=document.getElementById('mName').value,phone=document.getElementById('mPhone').value;
   if(!name||!phone){alert(lang==='ja'?'名前と電話番号を入力してください':'Enter name & phone');return}
-  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,email:document.getElementById('mEmail').value,company:document.getElementById('mCompany').value,address:document.getElementById('addrInput').value})}).catch(()=>{});
+  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,email:document.getElementById('mEmail').value,company:document.getElementById('mCompany').value,address:drawnCenter?drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6):document.getElementById('addrInput').value})}).catch(()=>{});
   document.getElementById('mForm').style.display='none';document.getElementById('mSuccess').style.display='block';
 }
 
