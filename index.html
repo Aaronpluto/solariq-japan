@@ -848,7 +848,7 @@ function renderSubsidyTab(r){
     html+='<div style="font-size:10px;color:var(--gray3);margin-bottom:12px;line-height:1.5">'+(lang==='ja'?'メールアドレスを入力すると、補助金詳細・ROI分析を含む完全レポートをお送りします':'Enter your email to receive the full report with subsidy details and ROI analysis')+'</div>';
     html+='<input type="email" id="unlockEmail" placeholder="your@email.com" style="width:100%;padding:8px 10px;border:1.5px solid var(--gray2);border-radius:var(--rs);font-size:13px;margin-bottom:8px;outline:none">';
     html+='<label style="display:flex;align-items:flex-start;gap:6px;font-size:9px;color:var(--gray3);text-align:left;margin-bottom:10px;cursor:pointer;line-height:1.4"><input type="checkbox" id="unlockConsent" style="margin-top:2px;width:14px;height:14px;flex-shrink:0"><span>'+(lang==='ja'?'シミュレーション結果を提携施工会社に提供することに同意します。施工会社から見積もりのご連絡をさせていただく場合があります。':'I agree to share simulation results with partner installers. They may contact me with quotes.')+'</span></label>';
-    html+='<button onclick="unlockReport()" style="width:100%;padding:10px;background:var(--ink);color:#fff;border:none;border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer">'+(lang==='ja'?'🔓 レポートを解除する':'🔓 Unlock Report')+'</button>';
+    html+='<button onclick="unlockReport()" style="width:100%;padding:10px;background:var(--ink);color:#fff;border:none;border-radius:var(--rs);font-size:12px;font-weight:600;cursor:pointer">'+(lang==='ja'?'📧 レポートをメールで受け取る':'📧 Send Report to Email')+'</button>';
     html+='</div></div>';
     document.getElementById('tabSubsidy').innerHTML=html;
     return;
@@ -873,18 +873,51 @@ function unlockReport(){
   const consent=document.getElementById('unlockConsent')?.checked;
   if(!email||!email.includes('@')){alert(lang==='ja'?'有効なメールアドレスを入力してください':'Please enter a valid email');return}
   if(!consent){alert(lang==='ja'?'施工会社への情報提供に同意してください':'Please agree to share information with installers');return}
-  // Send lead with email
-  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Report Unlock',phone:'',email:email,company:'',address:drawnCenter?(drawnCenter.address||drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6)):document.getElementById('addrInput').value,consent:'施工会社への情報提供に同意'})}).catch(()=>{});
-  window.reportUnlocked=true;
-  // Re-render with full data
-  if(curResults){
-    renderSubsidyTab(curResults);
-    renderCalcTab(curResults);
-    // Unlock KPIs
-    document.getElementById('k2').textContent=curResults.annSavMan.toFixed(1);
-    document.getElementById('k3').textContent=curResults.payback;
-    document.getElementById('k4').textContent=(curResults.cum[24]>=0?'+':'')+curResults.cum[24];
-  }
+
+  // Prepare report data for email
+  const r=curResults;
+  const reportData={
+    address: drawnCenter?(drawnCenter.address||drawnCenter.lat.toFixed(4)+','+drawnCenter.lng.toFixed(4)):document.getElementById('addrInput').value,
+    area: r?.area||'—',
+    sysKW: r?.sysKW||'—',
+    panels: r?.panels||'—',
+    annualKWh: r?Math.round(r.annualKWh).toLocaleString():'—',
+    annualSavings: r?r.annSavMan.toFixed(1):'—',
+    payback: r?.payback||'—',
+    profit25: r?(r.cum[24]>=0?'+':'')+r.cum[24]:'—',
+    subsidies: r?r.subs.map(s=>({name:s.name,level:s.level,amount:Math.round(s.amount/10000)})):[],
+    totalSubsidy: r?Math.round(r.totalSubsidy/10000):'—',
+    netCost: r?Math.round(r.netCost/10000):'—',
+    dataSource: r?.dataSource||'Open-Meteo',
+    dailyGHI: r?.dailyGHI||'—',
+    orientF: r?.orientF||'—',
+    shadingF: r?.shadingF?.toFixed(2)||'—',
+    company: COMPANIES[selCo]?.name||'—',
+  };
+
+  // Show sending state
+  const btn=document.querySelector('#tabSubsidy button[onclick="unlockReport()"]');
+  if(btn){btn.textContent='📧 '+(lang==='ja'?'送信中...':'Sending...');btn.disabled=true}
+
+  // Send email via API
+  fetch('/api/send-report',{
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email,report:reportData})
+  }).then(res=>res.json()).then(data=>{
+    if(data.success){
+      // Show success message (don't unlock page)
+      document.getElementById('tabSubsidy').innerHTML='<div style="text-align:center;padding:30px 10px"><div style="font-size:48px;margin-bottom:12px">📧</div><div style="font-size:14px;font-weight:600;margin-bottom:6px">'+(lang==='ja'?'レポートを送信しました！':'Report sent!')+'</div><div style="font-size:11px;color:var(--gray3);line-height:1.6">'+(lang==='ja'?email+' にレポートをお送りしました。<br>メールをご確認ください。':'Sent to '+email+'.<br>Please check your inbox.')+'</div></div>';
+      // Also send lead data to Google Sheet
+      fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Report Email',phone:'',email:email,company:'',address:reportData.address,consent:'施工会社への情報提供に同意'})}).catch(()=>{});
+    }else{
+      alert((lang==='ja'?'送信に失敗しました: ':'Send failed: ')+(data.error||'unknown'));
+      if(btn){btn.textContent='🔓 '+(lang==='ja'?'レポートを送信':'Send Report');btn.disabled=false}
+    }
+  }).catch(e=>{
+    alert((lang==='ja'?'通信エラー: ':'Error: ')+e.message);
+    if(btn){btn.textContent='🔓 '+(lang==='ja'?'レポートを送信':'Send Report');btn.disabled=false}
+  });
 }
 
 function toggleSubsidy(idx){
