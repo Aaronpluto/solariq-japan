@@ -543,6 +543,15 @@ function updateAreaFromPolygons(){
     drawnCenter={lat:c.lat(),lng:c.lng()};
     document.getElementById('coordTxt').textContent=drawnCenter.lat.toFixed(4)+'° N, '+drawnCenter.lng.toFixed(4)+'° E';
     document.getElementById('badgeAddr').textContent='📍 '+(lang==='ja'?'描画エリア':'Drawn Area');
+    // Reverse geocode to get text address
+    if(google?.maps?.Geocoder){
+      new google.maps.Geocoder().geocode({location:{lat:drawnCenter.lat,lng:drawnCenter.lng}},function(results,status){
+        if(status==='OK'&&results[0]){
+          drawnCenter.address=results[0].formatted_address;
+          document.getElementById('badgeAddr').textContent='📍 '+drawnCenter.address.substring(0,22);
+        }
+      });
+    }
   }
 }
 
@@ -768,23 +777,49 @@ function renderCalcTab(r){
   const isJa=lang==='ja';
   const co=COMPANIES[selCo];
   const nNat=SUBSIDY_DB.national.length,nPref=(SUBSIDY_DB.pref[getPrefKey(r.addr)]||[]).length;
-  const steps=isJa?[
-    {l:'STEP 1 · 気象実測データ',d:(lang==='ja'?'過去1年間の衛星観測データ（気象庁準拠）· 平均日射量 ':'1-year satellite observation (JMA-grade) · Avg GHI ')+(r.dailyGHI||4.2)+' kWh/m²/日',v:lang==='ja'?'✓ 実績データ取得完了':'✓ Real data loaded',c:''},
+
+  // Steps 1-3 always visible
+  const openSteps=isJa?[
+    {l:'STEP 1 · 気象実測データ',d:(r.dataSource||'NEDO')+' · 平均日射量 '+(r.dailyGHI||4.2)+' kWh/m²/日',v:'✓ 実績データ取得完了',c:''},
     {l:'STEP 2 · 傾斜面変換',d:'Perez簡易モデル · 向き×'+r.orientF,v:'実効日射量算出',c:''},
     {l:'STEP 3 · 発電量',d:'システム損失0.80 · 遮蔽×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'万 kWh/年',c:'hi'},
+  ]:[
+    {l:'STEP 1 · SOLAR DATA',d:(r.dataSource||'NEDO')+' · GHI '+(r.dailyGHI||4.2)+' kWh/m²/day',v:'✓ Real data loaded',c:''},
+    {l:'STEP 2 · POA',d:'Perez model · Orient ×'+r.orientF,v:'Calculated',c:''},
+    {l:'STEP 3 · Output',d:'PR 0.80 · Shade ×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'0K kWh/yr',c:'hi'},
+  ];
+
+  // Steps 4-7 locked
+  const lockedSteps=isJa?[
     {l:'STEP 4 · 設置費用',d:'¥'+(co.pricePerKW/10000).toFixed(1)+'万/kW × '+r.sysKW+'kW',v:'¥'+(r.installCost/10000).toFixed(0)+'万',c:''},
     {l:'STEP 5 · 補助金控除',d:'国'+nNat+'件＋都道府県'+nPref+'件',v:'▲¥'+(r.totalSubsidy/10000).toFixed(0)+'万 → 実質¥'+(r.netCost/10000).toFixed(0)+'万',c:'gr'},
     {l:'STEP 6 · 年間経済効果',d:'自家消費'+Math.round(r.selfRate*100)+'%×¥30 + 売電'+Math.round((1-r.selfRate)*100)+'%×¥12',v:'¥'+r.annSavMan.toFixed(1)+'万/年',c:'hi'},
     {l:'STEP 7 · 回収期間',d:'実質費用÷年間効果',v:r.payback+'年',c:'gr'},
   ]:[
-    {l:'STEP 1 · NEDO',d:'METPV-20 '+r.ck,v:'Loaded',c:''},{l:'STEP 2 · POA',d:'Perez · Orient ×'+r.orientF,v:'Calculated',c:''},
-    {l:'STEP 3 · Output',d:'PR 0.80 · Shade ×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'0K kWh/yr',c:'hi'},
     {l:'STEP 4 · Cost',d:'¥'+(co.pricePerKW/10000).toFixed(1)+'M/kW × '+r.sysKW+'kW',v:'¥'+(r.installCost/10000).toFixed(0)+'M',c:''},
     {l:'STEP 5 · Subsidy',d:'Nat '+nNat+' + Pref '+nPref,v:'Net ¥'+(r.netCost/10000).toFixed(0)+'M',c:'gr'},
     {l:'STEP 6 · Savings',d:'Self '+Math.round(r.selfRate*100)+'% + Export',v:'¥'+r.annSavMan.toFixed(1)+'M/yr',c:'hi'},
     {l:'STEP 7 · Payback',d:'Net ÷ Savings',v:r.payback+' yr',c:'gr'},
   ];
-  document.getElementById('tabCalc').innerHTML=steps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
+
+  let html='';
+  // Open steps (always visible)
+  html+=openSteps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
+
+  // Locked steps
+  if(!window.reportUnlocked){
+    html+='<div style="position:relative;margin-top:8px">';
+    html+='<div style="filter:blur(4px);pointer-events:none;user-select:none">';
+    html+=lockedSteps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
+    html+='</div>';
+    html+='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.8);border-radius:var(--rs)">';
+    html+='<div style="text-align:center;font-size:11px;color:var(--gray3)">🔒 '+(isJa?'補助金タブからメール登録で全表示':'Unlock via Subsidy tab')+'</div>';
+    html+='</div></div>';
+  }else{
+    html+=lockedSteps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
+  }
+
+  document.getElementById('tabCalc').innerHTML=html;
 }
 function renderSubsidyTab(r){
   // Check if user has unlocked
@@ -830,7 +865,7 @@ function unlockReport(){
   if(!email||!email.includes('@')){alert(lang==='ja'?'有効なメールアドレスを入力してください':'Please enter a valid email');return}
   if(!consent){alert(lang==='ja'?'施工会社への情報提供に同意してください':'Please agree to share information with installers');return}
   // Send lead with email
-  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Report Unlock',phone:'',email:email,company:'',address:drawnCenter?drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6):document.getElementById('addrInput').value,consent:'施工会社への情報提供に同意'})}).catch(()=>{});
+  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:'Report Unlock',phone:'',email:email,company:'',address:drawnCenter?(drawnCenter.address||drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6)):document.getElementById('addrInput').value,consent:'施工会社への情報提供に同意'})}).catch(()=>{});
   window.reportUnlocked=true;
   // Re-render with full data
   if(curResults)renderSubsidyTab(curResults);
@@ -881,7 +916,7 @@ function hideModal(){document.getElementById('modalBg').classList.remove('show')
 function submitLead(){
   const name=document.getElementById('mName').value,phone=document.getElementById('mPhone').value;
   if(!name||!phone){alert(lang==='ja'?'名前と電話番号を入力してください':'Enter name & phone');return}
-  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,email:document.getElementById('mEmail').value,company:document.getElementById('mCompany').value,address:drawnCenter?drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6):document.getElementById('addrInput').value})}).catch(()=>{});
+  fetch(LEAD_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,phone,email:document.getElementById('mEmail').value,company:document.getElementById('mCompany').value,address:drawnCenter?(drawnCenter.address||drawnCenter.lat.toFixed(6)+','+drawnCenter.lng.toFixed(6)):document.getElementById('addrInput').value})}).catch(()=>{});
   document.getElementById('mForm').style.display='none';document.getElementById('mSuccess').style.display='block';
 }
 
