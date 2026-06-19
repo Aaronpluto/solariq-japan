@@ -18,7 +18,7 @@
   --shadow:0 1px 3px rgba(10,22,40,.08),0 4px 16px rgba(10,22,40,.06);
 }
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Outfit','Noto Sans JP',sans-serif;background:var(--gray);color:var(--ink);height:100vh;overflow:hidden;font-size:14px}
+body{font-family:'Outfit','Noto Sans JP',sans-serif;background:var(--gray);color:var(--ink);height:100vh;overflow-x:hidden;font-size:14px}
 /* Header */
 header{background:var(--ink);color:#fff;padding:0 20px;height:50px;display:flex;align-items:center;justify-content:space-between;position:fixed;top:0;left:0;right:0;z-index:1000;box-shadow:0 2px 12px rgba(0,0,0,.2)}
 .logo{display:flex;align-items:center;gap:8px}
@@ -170,6 +170,41 @@ header{background:var(--ink);color:#fff;padding:0 20px;height:50px;display:flex;
 span.ja,span.en{display:none}
 body.ja span.ja{display:inline}
 body.en span.en{display:inline}
+
+/* Mobile */
+@media(max-width:768px){
+  .app{grid-template-columns:1fr;height:auto;overflow:auto}
+  .left{height:auto;overflow:visible;border-right:none;border-bottom:1px solid var(--gray2)}
+  .right{height:60vh;min-height:300px}
+  #gmap{height:100%}
+  .results-panel{width:100%;position:fixed;top:50px;left:0;right:0;bottom:0;z-index:100;border-left:none;border-radius:16px 16px 0 0;padding:20px 16px}
+  .kpi-grid{grid-template-columns:1fr 1fr}
+  .score-circle{width:64px;height:64px}
+  .score-val{font-size:22px}
+  header{padding:0 12px}
+  .logo h1{font-size:15px}
+  .logo-sub{display:none}
+  .btn-consult{padding:5px 10px;font-size:10px}
+  .sec{padding:12px}
+  .run-btn{padding:11px;font-size:13px}
+  .draw-btns{top:8px;left:8px}
+  .draw-btn{font-size:10px;padding:4px 8px}
+  .map-badge{font-size:9px;padding:4px 8px}
+  .map-ctrls{top:8px;right:8px}
+  .map-btn{width:26px;height:26px;font-size:11px}
+  .close-btn{top:10px;right:10px}
+  .cta-box{padding:14px}
+  .cta-box h4{font-size:12px}
+}
+@media(max-width:400px){
+  .chips{gap:3px}
+  .chip{font-size:10px;padding:2px 7px}
+  .auto-stats{gap:5px}
+  .auto-stat-val{font-size:16px}
+  .kpi-val{font-size:18px}
+  .hdr-right{gap:6px}
+  .lang-wrap{display:none}
+}
 </style>
 </head>
 <body class="ja">
@@ -269,6 +304,7 @@ body.en span.en{display:inline}
     <button class="map-btn" onclick="gmap&&gmap.setZoom(gmap.getZoom()+1)">＋</button>
     <button class="map-btn" onclick="gmap&&gmap.setZoom(gmap.getZoom()-1)">－</button>
     <button class="map-btn" id="mapTypeBtn" onclick="toggleMapType()">🛰</button>
+    <button class="map-btn" onclick="goHome()" title="描画エリアに戻る">⌂</button>
   </div>
   <div class="draw-btns">
     <button class="draw-btn" id="drawBtn" onclick="toggleDrawMode()">✏️ <span class="ja">屋上エリアを描く</span><span class="en">Draw Roof</span></button>
@@ -371,6 +407,7 @@ const LEAD_URL='https://script.google.com/macros/s/AKfycbymRa7tZuFlp1bOTNaWq-OB4
 let lang='ja',selCo=0,battOn=false,gmap=null,mapReady=false,isSat=true;
 let curResults=null,solarApiData=null,panelOverlays=[];
 let drawMode=false,drawStartLatLng=null,drawListeners=[];
+let drawnCenter=null; // center of drawn polygons (used as actual location)
 // ===== LANGUAGE =====
 function setLang(l){lang=l;document.body.className=l;document.querySelectorAll('.lang-btn').forEach(b=>b.classList.toggle('active',b.textContent.trim()===(l==='ja'?'日本語':'EN')))}
 
@@ -381,6 +418,11 @@ function initGoogleMap(){
   renderCoList();
 }
 function toggleMapType(){isSat=!isSat;gmap&&gmap.setMapTypeId(isSat?'satellite':'roadmap');document.getElementById('mapTypeBtn').textContent=isSat?'🛰':'🗺'}
+function goHome(){
+  if(!gmap)return;
+  if(drawnCenter){gmap.setCenter(drawnCenter);gmap.setZoom(20)}
+  else if(curResults&&curResults._lat){gmap.setCenter({lat:curResults._lat,lng:curResults._lng});gmap.setZoom(20)}
+}
 function setCity(k){const c=CITIES[k];if(!c)return;document.getElementById('addrInput').value=c.addr;runAnalysis()}
 function geocode(addr){return new Promise(r=>{if(!gmap||!google?.maps?.Geocoder)return r(null);new google.maps.Geocoder().geocode({address:addr,region:'JP'},(res,s)=>{if(s==='OK'&&res.length){const l=res[0].geometry.location;r({lat:l.lat(),lng:l.lng(),formatted:res[0].formatted_address})}else r(null)})})}
 async function fetchSolarAPI(lat,lng){try{const r=await fetch(`https://solar.googleapis.com/v1/buildingInsights:findClosest?location.latitude=${lat}&location.longitude=${lng}&requiredQuality=HIGH&key=${GKEY}`);const d=await r.json();return d.error?null:d}catch{return null}}
@@ -486,13 +528,22 @@ function clearDrawnArea(){
 
 function updateAreaFromPolygons(){
   let totalArea=0,totalPanels=0;
+  const allBounds=new google.maps.LatLngBounds();
   drawnPolygons.forEach(d=>{
     totalArea+=google.maps.geometry.spherical.computeArea(d.polygon.getPath());
     totalPanels+=d.panels.length;
+    d.polygon.getPath().forEach(p=>allBounds.extend(p));
   });
   document.getElementById('roofArea').value=Math.round(totalArea);
   document.getElementById('autoPanels').textContent=totalPanels;
   document.getElementById('autoKW').textContent=(totalPanels*.4).toFixed(1);
+  // Save center of drawn area as actual location
+  if(drawnPolygons.length>0){
+    const c=allBounds.getCenter();
+    drawnCenter={lat:c.lat(),lng:c.lng()};
+    document.getElementById('coordTxt').textContent=drawnCenter.lat.toFixed(4)+'° N, '+drawnCenter.lng.toFixed(4)+'° E';
+    document.getElementById('badgeAddr').textContent='📍 '+(lang==='ja'?'描画エリア':'Drawn Area');
+  }
 }
 
 function showHint(t){let h=document.getElementById('drawHint');if(!h){h=document.createElement('div');h.id='drawHint';h.style.cssText='position:absolute;top:80px;left:50%;transform:translateX(-50%);z-index:15;background:rgba(10,22,40,.9);color:#fbbf24;padding:7px 14px;border-radius:8px;font-family:JetBrains Mono,monospace;font-size:12px;font-weight:600;pointer-events:none;white-space:nowrap';document.querySelector('.right').appendChild(h)}h.textContent=t;h.style.display='block'}
@@ -586,6 +637,8 @@ function compute(){
   const sysKW=Math.round(panels*.4*10)/10;
 
   // Use real solar data if available, otherwise fallback to NEDO static
+  // If user drew an area, use drawnCenter for city detection
+  const effectiveAddr = drawnCenter ? '' : addr;
   const dailyGHI = realSolarData ? realSolarData.annualDailyGHI : city.ghi;
   const dataSource = realSolarData ? realSolarData.source : 'NEDO METPV-20 (static)';
 
@@ -653,11 +706,18 @@ function runAnalysis(){
   setLoading(true,'GEOCODING...');
   (async()=>{
     try{
-      const geo=await geocode(addr);
-      const lat=geo?.lat||(NEDO[getCityKey(addr)]||NEDO.tokyo).lat;
-      const lng=geo?.lng||(NEDO[getCityKey(addr)]||NEDO.tokyo).lng;
+      // Use drawnCenter if user has drawn, otherwise geocode the address
+      let lat, lng;
+      if (drawnCenter) {
+        lat = drawnCenter.lat;
+        lng = drawnCenter.lng;
+      } else {
+        const geo=await geocode(addr);
+        lat=geo?.lat||(NEDO[getCityKey(addr)]||NEDO.tokyo).lat;
+        lng=geo?.lng||(NEDO[getCityKey(addr)]||NEDO.tokyo).lng;
+      }
       document.getElementById('coordTxt').textContent=lat.toFixed(4)+'° N, '+lng.toFixed(4)+'° E';
-      document.getElementById('badgeAddr').textContent='📍 '+(geo?.formatted||addr).substring(0,20);
+      document.getElementById('badgeAddr').textContent='📍 '+(drawnCenter?(lang==='ja'?'描画エリア':'Drawn Area'):addr).substring(0,20);
 
       // Fetch real solar data from Open-Meteo
       setLoading(true,'SOLAR DATA (Open-Meteo)...');
@@ -816,9 +876,12 @@ function toggleHeatmap() {
 async function loadHeatmap() {
   if (!gmap) return;
 
-  // Use curResults if available, otherwise use map center
+  // Priority: drawnCenter > curResults > map center
   let lat, lng;
-  if (curResults && curResults._lat) {
+  if (drawnCenter) {
+    lat = drawnCenter.lat;
+    lng = drawnCenter.lng;
+  } else if (curResults && curResults._lat) {
     lat = curResults._lat;
     lng = curResults._lng;
   } else {
