@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   const { lat, lng } = req.query;
   if (!lat || !lng) return res.status(400).json({ error: 'lat and lng required' });
 
-  const GKEY = process.env.GOOGLE_SOLAR_KEY || 'AIzaSyBeiwOXgoQewhY4quuMzUcxHBzIRUhToYw';
+  const GKEY = process.env.GOOGLE_SOLAR_KEY;
 
   try {
     // Step 1: Get DataLayers metadata from Solar API
