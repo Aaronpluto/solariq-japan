@@ -7,7 +7,10 @@
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-16XWF5N3W7"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','G-16XWF5N3W7');</script>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+JP:wght@300;400;500;700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
-<script>const GKEY='AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc';</script>
+<script>const GKEY='AIzaSyBSHjx0ZpJRigYAqUMLhMv3evjA-JnPrTc';
+// Admin bypass: ?admin=1
+if(new URLSearchParams(window.location.search).get('admin')==='1'){window.reportUnlocked=true}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/geotiff@2.1.3/dist-browser/geotiff.js"></script>
 <style>
 :root{
@@ -390,8 +393,6 @@ const LEAD_URL='https://script.google.com/macros/s/AKfycbymRa7tZuFlp1bOTNaWq-OB4
 // ===== STATE =====
 let lang='ja',selCo=0,battOn=false,gmap=null,mapReady=false,isSat=true;
 let curResults=null,solarApiData=null,panelOverlays=[];
-// Admin mode: add ?admin=1 to URL to bypass locks
-if(new URLSearchParams(window.location.search).get('admin')==='1'){window.reportUnlocked=true}
 let drawMode=false,drawStartLatLng=null,drawListeners=[];
 let drawnCenter=null; // center of drawn polygons (used as actual location)
 // ===== LANGUAGE =====
