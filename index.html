@@ -275,24 +275,6 @@ body.en span.en{display:inline}
         <option value="flat">陸屋根（水平）</option>
       </select></div>
   </div>
-  <!-- 4: Company -->
-  <div class="sec">
-    <div class="sec-label"><span class="sec-num">4</span> <span class="ja">施工会社</span><span class="en">Installer</span></div>
-    <div class="co-list" id="coList"></div>
-  </div>
-  <!-- 5: Battery -->
-  <div class="sec">
-    <div class="sec-label"><span class="sec-num">5</span> <span class="ja">蓄電池</span><span class="en">Battery</span></div>
-    <div class="batt-toggle" id="battToggle" onclick="toggleBatt()">
-      <span style="font-size:16px">🔋</span>
-      <div style="flex:1"><div style="font-size:11px;font-weight:600"><span class="ja">蓄電池を追加</span><span class="en">Add Battery</span></div><div style="font-size:9px;color:var(--gray3)">自家消費 70%→90%</div></div>
-      <div class="sw"></div>
-    </div>
-    <div class="batt-config" id="battConfig">
-      <div class="field"><label><span class="ja">容量</span><span class="en">Capacity</span><span class="field-unit">kWh</span></label>
-        <input type="number" id="battCap" value="100" min="20" max="500" step="10"></div>
-    </div>
-  </div>
   <!-- Run -->
   <div class="sec">
     <button class="run-btn" onclick="runAnalysis()">⚡ <span class="ja">シミュレーション開始</span><span class="en">Run Simulation</span></button>
@@ -324,9 +306,9 @@ body.en span.en{display:inline}
     </div>
     <div class="kpi-grid">
       <div class="kpi blue"><div class="kpi-lbl"><span class="ja">年間発電量</span><span class="en">Output</span></div><div class="kpi-val" id="k1">—</div><div class="kpi-unit">kWh/<span class="ja">年</span><span class="en">yr</span></div></div>
-      <div class="kpi orange"><div class="kpi-lbl"><span class="ja">年間節約</span><span class="en">Savings</span></div><div class="kpi-val" id="k2">—</div><div class="kpi-unit"><span class="ja">万円/年</span><span class="en">¥10K/yr</span></div></div>
-      <div class="kpi green"><div class="kpi-lbl"><span class="ja">回収期間</span><span class="en">Payback</span></div><div class="kpi-val" id="k3">—</div><div class="kpi-unit"><span class="ja">年</span><span class="en">yr</span></div></div>
-      <div class="kpi blue"><div class="kpi-lbl"><span class="ja">25年利益</span><span class="en">25yr</span></div><div class="kpi-val" id="k4">—</div><div class="kpi-unit"><span class="ja">万円</span><span class="en">¥10K</span></div></div>
+      <div class="kpi orange"><div class="kpi-lbl"><span class="ja">年間節約額</span><span class="en">Savings</span></div><div class="kpi-val" id="k2">🔒</div><div class="kpi-unit"><span class="ja">万円/年</span><span class="en">¥10K/yr</span></div></div>
+      <div class="kpi green"><div class="kpi-lbl"><span class="ja">適用補助金</span><span class="en">Subsidies</span></div><div class="kpi-val" id="k3">🔒</div><div class="kpi-unit"><span class="ja">万円</span><span class="en">¥10K</span></div></div>
+      <div class="kpi blue"><div class="kpi-lbl"><span class="ja">適合スコア</span><span class="en">Score</span></div><div class="kpi-val" id="k4">—</div><div class="kpi-unit">/ 100</div></div>
     </div>
     <!-- Tabs -->
     <div class="tabs">
@@ -408,6 +390,8 @@ const LEAD_URL='https://script.google.com/macros/s/AKfycbymRa7tZuFlp1bOTNaWq-OB4
 // ===== STATE =====
 let lang='ja',selCo=0,battOn=false,gmap=null,mapReady=false,isSat=true;
 let curResults=null,solarApiData=null,panelOverlays=[];
+// Admin mode: add ?admin=1 to URL to bypass locks
+if(new URLSearchParams(window.location.search).get('admin')==='1'){window.reportUnlocked=true}
 let drawMode=false,drawStartLatLng=null,drawListeners=[];
 let drawnCenter=null; // center of drawn polygons (used as actual location)
 // ===== LANGUAGE =====
@@ -765,16 +749,10 @@ function showResults(r){
   document.getElementById('rScore').textContent=r.score;
   document.getElementById('rGrade').textContent=r.score>=80?'⭐ '+(lang==='ja'?'非常に適合':'Excellent'):r.score>=60?'✅ '+(lang==='ja'?'適合':'Good'):'⚠️ '+(lang==='ja'?'要検討':'Review');
   document.getElementById('k1').textContent=(r.annualKWh/10000).toFixed(1)+'万';
-  // Lock financial KPIs until unlocked
-  if(window.reportUnlocked){
-    document.getElementById('k2').textContent=r.annSavMan.toFixed(1);
-    document.getElementById('k3').textContent=r.payback;
-    document.getElementById('k4').textContent=(r.cum[24]>=0?'+':'')+r.cum[24];
-  }else{
-    document.getElementById('k2').textContent='🔒';
-    document.getElementById('k3').textContent='🔒';
-    document.getElementById('k4').textContent='🔒';
-  }
+  document.getElementById('k4').textContent=r.score;
+  // k2 (savings) and k3 (subsidies) stay locked
+  document.getElementById('k2').textContent='🔒';
+  document.getElementById('k3').textContent='🔒';
   document.getElementById('autoPanels').textContent=r.panels;
   document.getElementById('autoKW').textContent=r.sysKW;
   renderCalcTab(r);renderSubsidyTab(r);renderFactorsTab(r);
@@ -784,50 +762,19 @@ function closeResults(){document.getElementById('resultsPanel').classList.remove
 
 function renderCalcTab(r){
   const isJa=lang==='ja';
-  const co=COMPANIES[selCo];
-  const nNat=SUBSIDY_DB.national.length,nPref=(SUBSIDY_DB.pref[getPrefKey(r.addr)]||[]).length;
 
-  // Steps 1-3 always visible
-  const openSteps=isJa?[
-    {l:'STEP 1 · 気象実測データ',d:(r.dataSource||'NEDO')+' · 平均日射量 '+(r.dailyGHI||4.2)+' kWh/m²/日',v:'✓ 実績データ取得完了',c:''},
+  const steps=isJa?[
+    {l:'STEP 1 · 気象実測データ',d:(r.dataSource||'Open-Meteo')+' · 平均日射量 '+(r.dailyGHI||4.2)+' kWh/m²/日',v:'✓ 実績データ取得完了',c:''},
     {l:'STEP 2 · 傾斜面変換',d:'Perez簡易モデル · 向き×'+r.orientF,v:'実効日射量算出',c:''},
-    {l:'STEP 3 · 発電量',d:'システム損失0.80 · 遮蔽×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'万 kWh/年',c:'hi'},
+    {l:'STEP 3 · 年間発電量',d:'システム損失0.80 · 遮蔽×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'万 kWh/年',c:'hi'},
   ]:[
-    {l:'STEP 1 · SOLAR DATA',d:(r.dataSource||'NEDO')+' · GHI '+(r.dailyGHI||4.2)+' kWh/m²/day',v:'✓ Real data loaded',c:''},
-    {l:'STEP 2 · POA',d:'Perez model · Orient ×'+r.orientF,v:'Calculated',c:''},
-    {l:'STEP 3 · Output',d:'PR 0.80 · Shade ×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'0K kWh/yr',c:'hi'},
+    {l:'STEP 1 · SOLAR DATA',d:(r.dataSource||'Open-Meteo')+' · GHI '+(r.dailyGHI||4.2)+' kWh/m²/day',v:'✓ Real data loaded',c:''},
+    {l:'STEP 2 · POA CONVERSION',d:'Perez model · Orient ×'+r.orientF,v:'Calculated',c:''},
+    {l:'STEP 3 · ANNUAL OUTPUT',d:'PR 0.80 · Shade ×'+r.shadingF.toFixed(2),v:(r.annualKWh/10000).toFixed(1)+'0K kWh/yr',c:'hi'},
   ];
 
-  // Steps 4-7 locked
-  const lockedSteps=isJa?[
-    {l:'STEP 4 · 設置費用',d:'¥'+(co.pricePerKW/10000).toFixed(1)+'万/kW × '+r.sysKW+'kW',v:'¥'+(r.installCost/10000).toFixed(0)+'万',c:''},
-    {l:'STEP 5 · 補助金控除',d:'国'+nNat+'件＋都道府県'+nPref+'件',v:'▲¥'+(r.totalSubsidy/10000).toFixed(0)+'万 → 実質¥'+(r.netCost/10000).toFixed(0)+'万',c:'gr'},
-    {l:'STEP 6 · 年間経済効果',d:'自家消費'+Math.round(r.selfRate*100)+'%×¥30 + 売電'+Math.round((1-r.selfRate)*100)+'%×¥12',v:'¥'+r.annSavMan.toFixed(1)+'万/年',c:'hi'},
-    {l:'STEP 7 · 回収期間',d:'実質費用÷年間効果',v:r.payback+'年',c:'gr'},
-  ]:[
-    {l:'STEP 4 · Cost',d:'¥'+(co.pricePerKW/10000).toFixed(1)+'M/kW × '+r.sysKW+'kW',v:'¥'+(r.installCost/10000).toFixed(0)+'M',c:''},
-    {l:'STEP 5 · Subsidy',d:'Nat '+nNat+' + Pref '+nPref,v:'Net ¥'+(r.netCost/10000).toFixed(0)+'M',c:'gr'},
-    {l:'STEP 6 · Savings',d:'Self '+Math.round(r.selfRate*100)+'% + Export',v:'¥'+r.annSavMan.toFixed(1)+'M/yr',c:'hi'},
-    {l:'STEP 7 · Payback',d:'Net ÷ Savings',v:r.payback+' yr',c:'gr'},
-  ];
-
-  let html='';
-  // Open steps (always visible)
-  html+=openSteps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
-
-  // Locked steps
-  if(!window.reportUnlocked){
-    html+='<div style="position:relative;margin-top:8px">';
-    html+='<div style="filter:blur(4px);pointer-events:none;user-select:none">';
-    html+=lockedSteps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
-    html+='</div>';
-    html+='<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.8);border-radius:var(--rs)">';
-    html+='<div style="text-align:center;font-size:11px;color:var(--gray3)">🔒 '+(isJa?'補助金タブからメール登録で全表示':'Unlock via Subsidy tab')+'</div>';
-    html+='</div></div>';
-  }else{
-    html+=lockedSteps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
-  }
-
+  let html=steps.map(s=>'<div class="calc-step"><div class="step-dot"></div><div class="step-body"><div class="step-lbl">'+s.l+'</div><div class="step-detail">'+s.d+'</div><div class="step-result '+s.c+'">'+s.v+'</div></div></div>').join('');
+  html+='<div style="margin-top:12px;padding:12px;background:var(--sky);border-radius:var(--rs);font-size:11px;color:var(--ink2);text-align:center">'+(isJa?'💡 詳細な節約額・補助金情報はメールレポートに含まれます':'💡 Detailed savings & subsidy info included in email report')+'</div>';
   document.getElementById('tabCalc').innerHTML=html;
 }
 function renderSubsidyTab(r){
