@@ -750,9 +750,13 @@ function showResults(r){
   document.getElementById('rGrade').textContent=r.score>=80?'⭐ '+(lang==='ja'?'非常に適合':'Excellent'):r.score>=60?'✅ '+(lang==='ja'?'適合':'Good'):'⚠️ '+(lang==='ja'?'要検討':'Review');
   document.getElementById('k1').textContent=(r.annualKWh/10000).toFixed(1)+'万';
   document.getElementById('k4').textContent=r.score;
-  // k2 (savings) and k3 (subsidies) stay locked
-  document.getElementById('k2').textContent='🔒';
-  document.getElementById('k3').textContent='🔒';
+  if(window.reportUnlocked){
+    document.getElementById('k2').textContent=r.annSavMan.toFixed(1);
+    document.getElementById('k3').textContent=Math.round(r.totalSubsidy/10000);
+  }else{
+    document.getElementById('k2').textContent='🔒';
+    document.getElementById('k3').textContent='🔒';
+  }
   document.getElementById('autoPanels').textContent=r.panels;
   document.getElementById('autoKW').textContent=r.sysKW;
   renderCalcTab(r);renderSubsidyTab(r);renderFactorsTab(r);
