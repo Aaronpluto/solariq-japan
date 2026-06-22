@@ -895,7 +895,9 @@ function showTab(idx){
 }
 // ===== COMPANY LIST =====
 function renderCoList(){
-  const el=document.getElementById('coList');el.innerHTML='';
+  const el=document.getElementById('coList');
+  if(!el)return;
+  el.innerHTML='';
   COMPANIES.forEach((co,i)=>{
     const d=document.createElement('div');d.className='co-item'+(i===selCo?' sel':'');
     d.onclick=()=>{selCo=i;renderCoList();if(curResults){curResults=compute();showResults(curResults)}};
